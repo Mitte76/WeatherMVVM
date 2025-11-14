@@ -1,6 +1,7 @@
 package com.example.weathermvvm.helpers
 
 import android.content.Context
+import com.example.weathermvvm.Constants
 import com.example.weathermvvm.models.WeatherResponse
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -38,7 +39,7 @@ object NetworkHelper {
         return try {
             if (
                 cacheFile.exists() &&
-                System.currentTimeMillis() - cacheFile.lastModified() < 60 * 20 * 1000 &&
+                System.currentTimeMillis() - cacheFile.lastModified() < Constants.CACHEFILE_LIFETIME &&
                 cacheFile.containsJson() &&
                 cacheFile.length() > 100L
             ) {
@@ -52,10 +53,26 @@ object NetworkHelper {
             null
         }
     }
+
     fun writeFileToCache(context: Context, fileName: String, jsonText: String) {
         val cacheFile = File(context.filesDir, fileName)
         println("Writing to cache: $fileName")
         cacheFile.writeText(jsonText)
+    }
+
+    fun clearCache(context: Context) {
+        val cacheDir = context.filesDir
+        // List all files in the directory
+        val files = cacheDir.listFiles()
+        println("Clearing cache...")
+        files?.filter { it.isFile && it.extension == "json" }
+            ?.forEach { file ->
+                if (file.delete()) {
+                    println("Deleted cache file: ${file.name}")
+                } else {
+                    println("Failed to delete cache file: ${file.name}")
+                }
+            }
     }
 
     fun String.isJson(): Boolean = this.trimStart().startsWith("{")
