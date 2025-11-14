@@ -1,6 +1,5 @@
 package com.example.weathermvvm
 
-import android.content.Context
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -8,6 +7,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
@@ -76,13 +76,7 @@ fun WeatherView(viewModel: WeatherViewModel, modifier: Modifier = Modifier) {
 
             println(viewModel) }
     )
-
-
-
-
 }
-
-
 
 @Composable
 fun WeatherListWithArrows(
@@ -223,8 +217,9 @@ fun WeatherCard(weatherResponse: WeatherResponse) {
     ) {
         Column(
             modifier = Modifier
+                .defaultMinSize(minWidth = 160.dp)
                 .background(CardBg, RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp))
-                .padding(8.dp),
+                .padding(horizontal = 16.dp, vertical = 8.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             if (weatherResponse.location.name.toLowerCase(Locale.current) != "null") {

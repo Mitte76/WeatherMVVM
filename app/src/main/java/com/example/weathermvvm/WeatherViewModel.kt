@@ -22,10 +22,6 @@ class WeatherViewModel : ViewModel() {
     var permissionGranted by mutableStateOf(false)
     var locationUpdatesRunning by mutableStateOf(false)
 
-    fun addWeatherData(data: WeatherData) {
-        _weatherData.add(data)
-    }
-
     fun onPermissionResult(isGranted: Boolean) {
         permissionGranted = isGranted
     }
@@ -44,14 +40,8 @@ class WeatherViewModel : ViewModel() {
 
         val cacheFile = NetworkHelper.loadWeatherFromCache(context, filename)
 
-        if(cacheFile != null) {
-            println("Found cached file $cacheFile filename: $filename" )
-        } else {
-            println("No cached file found filename: $filename")
-        }
         val shouldReload = forceReload || cacheFile == null
 
-        println("Should reload: $shouldReload")
         val url =
             Constants.URL_FORECAST + "?key=" + BuildConfig.API_KEY + "&q=" + location.apiQuery + "&aqi=no&days=4"
         if (shouldReload) {
