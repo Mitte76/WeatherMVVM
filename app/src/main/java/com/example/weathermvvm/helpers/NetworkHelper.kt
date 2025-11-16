@@ -1,16 +1,19 @@
 package com.example.weathermvvm.helpers
 
 import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import com.example.weathermvvm.Constants
 import com.example.weathermvvm.models.WeatherResponse
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import java.io.File
 import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URL
-import kotlin.io.readText
 
 object NetworkHelper {
     suspend fun httpGet(url: String): Result<String> = withContext(Dispatchers.IO) {
@@ -88,4 +91,25 @@ object NetworkHelper {
         false
     }
 
+    fun getImage(context: Context, url: String) = flow {
+        val filename = url.substring(url.lastIndexOf('/') + 1)
+        val cacheFile = File(context.cacheDir, filename)
+
+        if (cacheFile.exists()) {
+            val bitmap = BitmapFactory.decodeFile(cacheFile.absolutePath)
+            if (bitmap != null) {
+                println("Returning bitmap from cache $filename")
+                emit(bitmap)
+                return@flow
+            }
+        }
+
+        try {
+            val bitmap = BitmapFactory.decodeStream(URL(url).openStream())
+            bitmap?.compress(Bitmap.CompressFormat.PNG, 100, cacheFile.outputStream())
+            emit(bitmap)
+        } catch (e: IOException) {
+            emit(null)
+        }
+    }.flowOn(Dispatchers.IO)
 }

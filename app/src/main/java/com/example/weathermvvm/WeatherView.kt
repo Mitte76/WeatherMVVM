@@ -1,5 +1,6 @@
 package com.example.weathermvvm
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -30,6 +31,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -39,6 +41,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.input.ImeAction
@@ -46,6 +49,8 @@ import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.intl.Locale
 import androidx.compose.ui.text.toLowerCase
 import androidx.compose.ui.unit.dp
+import com.example.weathermvvm.helpers.NetworkHelper
+import com.example.weathermvvm.models.Hour
 import com.example.weathermvvm.models.LocationBase
 import com.example.weathermvvm.models.LocationData
 import com.example.weathermvvm.models.WeatherData
@@ -70,11 +75,11 @@ fun WeatherView(viewModel: WeatherViewModel, modifier: Modifier = Modifier) {
                     city = it,
                     basedOn = LocationBase.CITY
 
-                ), context
-                ,false
+                ), context, false
             )
 
-            println(viewModel) }
+            println(viewModel)
+        }
     )
 }
 
@@ -116,7 +121,7 @@ fun WeatherListWithArrows(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 items(weatherResponseList) { weatherdata ->
-                    WeatherCard(weatherdata.weatherResponse)
+                    WeatherCardList(weatherdata.weatherResponse)
                 }
 
             }
@@ -207,7 +212,7 @@ fun CityInputRow(
 }
 
 @Composable
-fun WeatherCard(weatherResponse: WeatherResponse) {
+fun WeatherCardList(weatherResponse: WeatherResponse) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -238,25 +243,43 @@ fun WeatherCard(weatherResponse: WeatherResponse) {
                 Text(day.date)
                 LazyRow(modifier = Modifier.fillMaxSize()) {
                     itemsIndexed(day.hour) { index, hour ->
-                        Column(
-                            modifier = Modifier
-                                .height(80.dp)
-                                .background(HourBg, RoundedCornerShape(8.dp))
-                                .padding(8.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.Center
-                        ) {
-                            Text(hour.time.split(" ")[1])
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Text(hour.temp_c.toString())
-                        }
-                        if (index != day.hour.lastIndex) {
-                            Spacer(modifier = Modifier.width(8.dp))
-                        }
+                        HourCard(hour, index == day.hour.lastIndex)
                     }
                 }
                 HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp))
             }
         }
+    }
+}
+
+@Composable
+fun HourCard(hour: Hour, lastIndex: Boolean) {
+    Column(
+        modifier = Modifier
+            .height(80.dp)
+            .background(HourBg, RoundedCornerShape(8.dp))
+            .padding(8.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+
+        val context = LocalContext.current
+        val imageBitmap by remember(hour.condition.icon) {
+            NetworkHelper.getImage(context, "https:${hour.condition.icon}")
+        }.collectAsState(initial = null)
+        imageBitmap?.let {
+            Image(
+                bitmap = it.asImageBitmap(),
+                contentDescription = hour.condition.text
+            )
+        }
+
+
+        Text(hour.time.split(" ")[1])
+        Spacer(modifier = Modifier.height(4.dp))
+        Text(hour.temp_c.toString())
+    }
+    if (!lastIndex) {
+        Spacer(modifier = Modifier.width(8.dp))
     }
 }
