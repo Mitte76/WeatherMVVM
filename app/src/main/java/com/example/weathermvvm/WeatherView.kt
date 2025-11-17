@@ -49,14 +49,17 @@ import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.example.weathermvvm.helpers.NetworkHelper
 import com.example.weathermvvm.models.Hour
 import com.example.weathermvvm.models.LocationBase
 import com.example.weathermvvm.models.LocationData
 import com.example.weathermvvm.models.WeatherData
+import com.example.weathermvvm.ui.theme.AppBg
 import com.example.weathermvvm.ui.theme.CardBg
 import com.example.weathermvvm.ui.theme.DayBg
 import com.example.weathermvvm.ui.theme.HourBg
+import com.example.weathermvvm.ui.theme.TextColor
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
@@ -85,8 +88,22 @@ fun WeatherListWithArrows(
 ) {
     val listState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
-    Column(modifier = modifier) {
-        Box(modifier = Modifier.weight(1f)) {
+    Column(
+        modifier = modifier
+            .background(AppBg),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(
+            "Weather test app",
+            color = TextColor, fontSize = 24.sp,
+            modifier = Modifier
+                .padding(20.dp)
+        )
+        Box(
+            modifier = Modifier
+                .weight(1f)
+        )
+        {
             WeatherCardList(listState = listState, weatherResponseList = weatherResponseList)
             ScrollArrowUp(listState, coroutineScope)
             ScrollArrowDown(listState, coroutineScope)
@@ -114,7 +131,7 @@ fun WeatherCardList(listState: LazyListState, weatherResponseList: List<WeatherD
                             CardBg,
                             RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
                         )
-                        .padding(top = 8.dp, start = 8.dp, end = 8.dp),
+                        .padding(horizontal = 8.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     Column(
@@ -122,8 +139,8 @@ fun WeatherCardList(listState: LazyListState, weatherResponseList: List<WeatherD
                             .padding(8.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        Text(weatherResponse.location.name)
-                        Text(weatherResponse.current.condition.text)
+                        Text(weatherResponse.location.name, color = TextColor)
+                        Text(weatherResponse.current.condition.text, color = TextColor)
                     }
                 }
             }
@@ -150,14 +167,15 @@ fun WeatherCardList(listState: LazyListState, weatherResponseList: List<WeatherD
                                     DayBg,
                                     RoundedCornerShape(8.dp, 8.dp)
                                 )
-                                .padding(8.dp)
+                                .padding(8.dp),
+                            color = TextColor
                         )
                         DailyForecastRow(day = day)
                     }
                 }
             }
             item {
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(48.dp))
             }
         }
     }
@@ -176,6 +194,7 @@ private fun BoxScope.ScrollArrowUp(listState: LazyListState, scope: CoroutineSco
 
             imageVector = Icons.Default.KeyboardArrowUp,
             contentDescription = "Scroll up",
+            tint = Color.White,
             modifier = Modifier
                 .align(Alignment.TopCenter)
                 .background(Color.Black.copy(alpha = 0.2f), RoundedCornerShape(50))
@@ -302,8 +321,8 @@ fun HourCard(hour: Hour) {
             )
         }
 
-        Text(hour.time.split(" ")[1])
+        Text(hour.time.split(" ")[1], color = TextColor)
         Spacer(modifier = Modifier.height(4.dp))
-        Text("${hour.temp_c}°")
+        Text("${hour.temp_c}°", color = TextColor)
     }
 }
