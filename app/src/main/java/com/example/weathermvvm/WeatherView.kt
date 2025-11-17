@@ -5,6 +5,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -16,6 +17,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -54,10 +56,9 @@ import com.example.weathermvvm.models.Hour
 import com.example.weathermvvm.models.LocationBase
 import com.example.weathermvvm.models.LocationData
 import com.example.weathermvvm.models.WeatherData
-import com.example.weathermvvm.models.WeatherResponse
-import com.example.weathermvvm.ui.theme.AppBg
 import com.example.weathermvvm.ui.theme.CardBg
 import com.example.weathermvvm.ui.theme.HourBg
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
 @Composable
@@ -67,18 +68,14 @@ fun WeatherView(viewModel: WeatherViewModel, modifier: Modifier = Modifier) {
     val context = LocalContext.current
 
     WeatherListWithArrows(
-        weatherResponseList = weatherItems,
-        modifier = modifier,
-        onCitySubmit = {
+        weatherResponseList = weatherItems, modifier = modifier, onCitySubmit = {
             viewModel.fetchWeatherForLocation(
                 LocationData(
-                    city = it,
-                    basedOn = LocationBase.CITY
+                    city = it, basedOn = LocationBase.CITY
 
                 ), context, false
             )
-        }
-    )
+        })
 }
 
 @Composable
@@ -87,135 +84,130 @@ fun WeatherListWithArrows(
     modifier: Modifier = Modifier,
     onCitySubmit: (String) -> Unit
 ) {
-    Column(
-        modifier = modifier
-            .background(AppBg)
-            .fillMaxHeight()
-    ) {
-        val listState = rememberLazyListState()
-        val coroutineScope = rememberCoroutineScope()
-        val showUpArrow by remember {
-            derivedStateOf {
-                listState.firstVisibleItemIndex > 0 || listState.firstVisibleItemScrollOffset > 0
-            }
-        }
-        val showDownArrow by remember {
-            derivedStateOf {
-                val layoutInfo = listState.layoutInfo
-                val visibleItems = layoutInfo.visibleItemsInfo
-                if (visibleItems.isEmpty()) return@derivedStateOf false
-                val lastVisible = visibleItems.last()
-                lastVisible.offset + lastVisible.size > layoutInfo.viewportEndOffset
-            }
-        }
-
+    val listState = rememberLazyListState()
+    val coroutineScope = rememberCoroutineScope()
+    Column(modifier = modifier) {
         Box(modifier = Modifier.weight(1f)) {
-            LazyColumn(
-//                state = listState,
-                modifier = Modifier.fillMaxSize(),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                contentPadding = PaddingValues(16.dp) // Apply padding here for all items
-            ) {
-                weatherResponseList.forEach { weatherData ->
-                    val weatherResponse = weatherData.weatherResponse
-                    item(key = "header_${weatherResponse.location.name}") {
-                        Column(
-                            modifier = Modifier
-                                .defaultMinSize(minWidth = 160.dp)
-                                .background(
-                                    CardBg,
-                                    RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
-                                )
-                                .padding(horizontal = 16.dp, vertical = 8.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally
-                        ) {
-                            if (weatherResponse.location.name.toLowerCase(Locale.current) != "null") {
-                                Text(weatherResponse.location.name)
-                                Spacer(modifier = Modifier.height(4.dp))
-                            }
-                            Text(weatherResponse.current.condition.text)
-                        }
-                    }
-                    itemsIndexed(weatherResponse.forecast.forecastday) { index, day ->
+            WeatherCardList(listState = listState, weatherResponseList = weatherResponseList)
+            ScrollArrowUp(listState, coroutineScope)
+            ScrollArrowDown(listState, coroutineScope)
+        }
+        CityInputRow(onSubmit = onCitySubmit)
+    }
 
+}
 
-                        val shape = when (index) {
-                            0 -> RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
-                            weatherResponse.forecast.forecastday.lastIndex -> RoundedCornerShape(
-                                bottomStart = 20.dp,
-                                bottomEnd = 20.dp
-                            )
-
-                            else -> RoundedCornerShape(0.dp)
-                        }
-                        Row(
-                            modifier = Modifier
-                                .background(
-                                    CardBg,
-                                    shape
-                                )
-                                .padding(16.dp)
-
+@Composable
+fun WeatherCardList(listState: LazyListState, weatherResponseList: List<WeatherData>) {
+    LazyColumn(
+        state = listState,
+        modifier = Modifier.fillMaxSize(),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        contentPadding = PaddingValues(16.dp)
+    ) {
+        weatherResponseList.forEach { weatherData ->
+            val weatherResponse = weatherData.weatherResponse
+            item(key = "header_${weatherResponse.location.name}") {
+                Column(
+                    modifier = Modifier
+                        .defaultMinSize(minWidth = 160.dp)
+                        .background(
+                            CardBg, RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
                         )
-                        {
-                            DailyForecastRow(day = day)
-                        }
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    if (weatherResponse.location.name.toLowerCase(Locale.current) != "null") {
+                        Text(weatherResponse.location.name)
+                        Spacer(modifier = Modifier.height(4.dp))
                     }
-                    item(key = "spacer_${weatherResponse.location.name}") {
-                        Spacer(modifier = Modifier.height(24.dp))
-                    }
+                    Text(weatherResponse.current.condition.text)
                 }
             }
+            itemsIndexed(weatherResponse.forecast.forecastday) { index, day ->
+                val shape = when (index) {
+                    0 -> RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
+                    weatherResponse.forecast.forecastday.lastIndex -> RoundedCornerShape(
+                        bottomStart = 20.dp, bottomEnd = 20.dp
+                    )
 
-            if (showUpArrow) {
-                Icon(
-                    imageVector = Icons.Default.KeyboardArrowUp,
-                    contentDescription = "Scroll up",
-                    tint = Color.White,
+                    else -> RoundedCornerShape(0.dp)
+                }
+                Row(
                     modifier = Modifier
-                        .align(Alignment.TopCenter)
-                        .background(Color.Black.copy(alpha = 0.2f), RoundedCornerShape(50))
-                        .padding(4.dp)
-                        .clickable {
-                            coroutineScope.launch {
-                                val targetIndex =
-                                    (listState.firstVisibleItemIndex - 1).coerceAtLeast(0)
-                                listState.animateScrollToItem(targetIndex)
-                            }
-                        }
-                )
+                        .background(
+                            CardBg, shape
+                        )
+                        .padding(16.dp)
+                ) {
+                    DailyForecastRow(day = day)
+                }
             }
-
-            if (showDownArrow) {
-                Icon(
-                    imageVector = Icons.Default.KeyboardArrowDown,
-                    contentDescription = "Scroll down",
-                    tint = Color.White,
-                    modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .background(Color.Black.copy(alpha = 0.2f), RoundedCornerShape(50))
-                        .padding(4.dp)
-                        .clickable {
-                            coroutineScope.launch {
-                                val targetIndex =
-                                    (listState.firstVisibleItemIndex + 1).coerceAtMost(
-                                        listState.layoutInfo.totalItemsCount - 1
-                                    )
-                                listState.animateScrollToItem(targetIndex)
-                            }
-                        }
-                )
+            item(key = "spacer_${weatherResponse.location.name}") {
+                Spacer(modifier = Modifier.height(24.dp))
             }
         }
+    }
+}
 
-        CityInputRow(onSubmit = onCitySubmit)
+@Composable
+private fun BoxScope.ScrollArrowUp(listState: LazyListState, scope: CoroutineScope) {
+    val showUp by remember {
+        derivedStateOf {
+            listState.firstVisibleItemIndex > 0 || listState.firstVisibleItemScrollOffset > 0
+        }
+    }
+
+    if (showUp) {
+        Icon(
+
+            imageVector = Icons.Default.KeyboardArrowUp,
+            contentDescription = "Scroll up",
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .background(Color.Black.copy(alpha = 0.2f), RoundedCornerShape(50))
+                .padding(4.dp)
+                .clickable {
+                    scope.launch {
+                        listState.animateScrollToItem(0)
+                    }
+                })
+    }
+}
+
+@Composable
+private fun BoxScope.ScrollArrowDown(listState: LazyListState, scope: CoroutineScope) {
+    val showDown by remember {
+        derivedStateOf {
+            val layoutInfo = listState.layoutInfo
+            val visible = layoutInfo.visibleItemsInfo
+            if (visible.isEmpty()) return@derivedStateOf false
+            val last = visible.last()
+            last.offset + last.size > layoutInfo.viewportEndOffset
+        }
+    }
+
+    if (showDown) {
+
+        Icon(
+            imageVector = Icons.Default.KeyboardArrowDown,
+            contentDescription = "Scroll down",
+            tint = Color.White,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .background(Color.Black.copy(alpha = 0.2f), RoundedCornerShape(50))
+                .padding(4.dp)
+                .clickable {
+                    scope.launch {
+                        listState.animateScrollToItem(listState.layoutInfo.totalItemsCount - 1)
+                    }
+                })
     }
 }
 
 @Composable
 fun CityInputRow(
-    onSubmit: (String) -> Unit,
-    modifier: Modifier = Modifier
+    onSubmit: (String) -> Unit, modifier: Modifier = Modifier
 ) {
     var text by remember { mutableStateOf(TextFieldValue("")) }
     val keyboardController = LocalSoftwareKeyboardController.current
@@ -235,122 +227,33 @@ fun CityInputRow(
                     onSubmit(text.text)
                     text = TextFieldValue("")
                     keyboardController?.hide()
-                }
-            )
-        )
+                }))
         Button(
-            modifier = Modifier.fillMaxHeight(),
-            shape = RoundedCornerShape(8.dp),
-            onClick = {
+            modifier = Modifier.fillMaxHeight(), shape = RoundedCornerShape(8.dp), onClick = {
                 onSubmit(text.text)
                 text = TextFieldValue("")
                 keyboardController?.hide()
-            }
-        ) {
+            }) {
             Text("Add")
         }
     }
 }
 
 @Composable
-fun WeatherCardList(weatherResponse: WeatherResponse) {
-    LazyColumn(
-        modifier = Modifier
-            .height(500.dp)
-            .padding(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        item {
-            Column(
-                modifier = Modifier
-                    .defaultMinSize(minWidth = 160.dp)
-                    .background(CardBg, RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp))
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                if (weatherResponse.location.name.toLowerCase(Locale.current) != "null") {
-                    Text(weatherResponse.location.name)
-                    Spacer(modifier = Modifier.height(4.dp))
-                }
-                Text(weatherResponse.current.condition.text)
-            }
-        }
-
-        items(
-            items = weatherResponse.forecast.forecastday,
-            key = { day -> day.date_epoch }
-        ) { day ->
-
-            DailyForecastRow(day)
-
-        }
-    }
-}
-
-@Composable
-private fun DailyForecastRow(day: com.example.weathermvvm.models.ForecastDay) {
-    // This LazyRow is now stable within its own composable
+fun DailyForecastRow(day: com.example.weathermvvm.models.ForecastDay) {
     LazyRow(
-        // Use Arrangement.spacedBy for cleaner code
         horizontalArrangement = Arrangement.spacedBy(8.dp),
-        // Add content padding for better UI
         contentPadding = PaddingValues(horizontal = 8.dp)
     ) {
         items(
-            items = day.hour,
-            // Provide a stable key for each hour
-            key = { hour -> hour.time_epoch }
-        ) { hour ->
-            // HourCard no longer needs to know its index
+            items = day.hour, key = { hour -> hour.time_epoch }) { hour ->
             HourCard(hour = hour)
         }
     }
 }
 
-//@Composable
-//fun WeatherCardList(weatherResponse: WeatherResponse) {
-//    Column(
-//        modifier = Modifier
-//            .fillMaxSize()
-//            .padding(16.dp),
-//        horizontalAlignment = Alignment.CenterHorizontally,
-//        verticalArrangement = Arrangement.Center
-//    ) {
-//        Column(
-//            modifier = Modifier
-//                .defaultMinSize(minWidth = 160.dp)
-//                .background(CardBg, RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp))
-//                .padding(horizontal = 16.dp, vertical = 8.dp),
-//            horizontalAlignment = Alignment.CenterHorizontally
-//        ) {
-//            if (weatherResponse.location.name.toLowerCase(Locale.current) != "null") {
-//                Text(weatherResponse.location.name)
-//                Spacer(modifier = Modifier.height(4.dp))
-//            }
-//            Text(weatherResponse.current.condition.text)
-//        }
-//
-//        Column(
-//            modifier = Modifier
-//                .background(CardBg, RoundedCornerShape(20.dp))
-//                .padding(16.dp)
-//        ) {
-//
-//            weatherResponse.forecast.forecastday.forEach { day ->
-//                Text(day.date)
-//                LazyRow(modifier = Modifier.fillMaxSize()) {
-//                    itemsIndexed(day.hour) { index, hour ->
-//                        HourCard(hour, index == day.hour.lastIndex)
-//                    }
-//                }
-//                HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp))
-//            }
-//        }
-//    }
-//}
-
 @Composable
-fun HourCard(hour: Hour/*, lastIndex: Boolean*/) {
+fun HourCard(hour: Hour) {
     Column(
         modifier = Modifier
             .background(HourBg, RoundedCornerShape(8.dp))
@@ -370,7 +273,6 @@ fun HourCard(hour: Hour/*, lastIndex: Boolean*/) {
                 contentDescription = hour.condition.text
             )
         }
-
 
         Text(hour.time.split(" ")[1])
         Spacer(modifier = Modifier.height(4.dp))
