@@ -48,8 +48,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.TextFieldValue
-import androidx.compose.ui.text.intl.Locale
-import androidx.compose.ui.text.toLowerCase
 import androidx.compose.ui.unit.dp
 import com.example.weathermvvm.helpers.NetworkHelper
 import com.example.weathermvvm.models.Hour
@@ -57,6 +55,7 @@ import com.example.weathermvvm.models.LocationBase
 import com.example.weathermvvm.models.LocationData
 import com.example.weathermvvm.models.WeatherData
 import com.example.weathermvvm.ui.theme.CardBg
+import com.example.weathermvvm.ui.theme.DayBg
 import com.example.weathermvvm.ui.theme.HourBg
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
@@ -103,32 +102,36 @@ fun WeatherCardList(listState: LazyListState, weatherResponseList: List<WeatherD
         state = listState,
         modifier = Modifier.fillMaxSize(),
         horizontalAlignment = Alignment.CenterHorizontally,
-        contentPadding = PaddingValues(16.dp)
+        contentPadding = PaddingValues(8.dp)
     ) {
         weatherResponseList.forEach { weatherData ->
             val weatherResponse = weatherData.weatherResponse
             item(key = "header_${weatherResponse.location.name}") {
-                Column(
+                Box(
                     modifier = Modifier
                         .defaultMinSize(minWidth = 160.dp)
                         .background(
-                            CardBg, RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
+                            CardBg,
+                            RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
                         )
-                        .padding(horizontal = 16.dp, vertical = 8.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
+                        .padding(top = 8.dp, start = 8.dp, end = 8.dp),
+                    contentAlignment = Alignment.Center
                 ) {
-                    if (weatherResponse.location.name.toLowerCase(Locale.current) != "null") {
+                    Column(
+                        modifier = Modifier
+                            .padding(8.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
                         Text(weatherResponse.location.name)
-                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(weatherResponse.current.condition.text)
                     }
-                    Text(weatherResponse.current.condition.text)
                 }
             }
             itemsIndexed(weatherResponse.forecast.forecastday) { index, day ->
                 val shape = when (index) {
-                    0 -> RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
+                    0 -> RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
                     weatherResponse.forecast.forecastday.lastIndex -> RoundedCornerShape(
-                        bottomStart = 20.dp, bottomEnd = 20.dp
+                        bottomStart = 16.dp, bottomEnd = 16.dp
                     )
 
                     else -> RoundedCornerShape(0.dp)
@@ -138,13 +141,23 @@ fun WeatherCardList(listState: LazyListState, weatherResponseList: List<WeatherD
                         .background(
                             CardBg, shape
                         )
-                        .padding(16.dp)
+                        .padding(horizontal = 8.dp, vertical = 8.dp),
                 ) {
-                    DailyForecastRow(day = day)
+                    Column {
+                        Text(
+                            day.date, modifier = Modifier
+                                .background(
+                                    DayBg,
+                                    RoundedCornerShape(8.dp, 8.dp)
+                                )
+                                .padding(8.dp)
+                        )
+                        DailyForecastRow(day = day)
+                    }
                 }
             }
-            item(key = "spacer_${weatherResponse.location.name}") {
-                Spacer(modifier = Modifier.height(24.dp))
+            item {
+                Spacer(modifier = Modifier.height(16.dp))
             }
         }
     }
@@ -199,7 +212,13 @@ private fun BoxScope.ScrollArrowDown(listState: LazyListState, scope: CoroutineS
                 .padding(4.dp)
                 .clickable {
                     scope.launch {
-                        listState.animateScrollToItem(listState.layoutInfo.totalItemsCount - 1)
+                        val lastIndex = listState.layoutInfo.totalItemsCount - 1
+                        if (lastIndex >= 0) {
+                            listState.animateScrollToItem(
+                                index = lastIndex,
+                                scrollOffset = listState.layoutInfo.viewportSize.height
+                            )
+                        }
                     }
                 })
     }
@@ -227,7 +246,8 @@ fun CityInputRow(
                     onSubmit(text.text)
                     text = TextFieldValue("")
                     keyboardController?.hide()
-                }))
+                })
+        )
         Button(
             modifier = Modifier.fillMaxHeight(), shape = RoundedCornerShape(8.dp), onClick = {
                 onSubmit(text.text)
@@ -242,8 +262,16 @@ fun CityInputRow(
 @Composable
 fun DailyForecastRow(day: com.example.weathermvvm.models.ForecastDay) {
     LazyRow(
+        modifier = Modifier
+            .background(
+                DayBg,
+                RoundedCornerShape(
+                    0.dp, 8.dp, 8.dp,
+                    8.dp
+                )
+            ),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
-        contentPadding = PaddingValues(horizontal = 8.dp)
+        contentPadding = PaddingValues(8.dp)
     ) {
         items(
             items = day.hour, key = { hour -> hour.time_epoch }) { hour ->
