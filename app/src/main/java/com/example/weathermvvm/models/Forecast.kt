@@ -11,7 +11,7 @@ data class WeatherData(
 data class WeatherResponse(
     val location: Location,
     val current: Current,
-    val forecast: Forecast? = null
+    val forecast: Forecast
 )
 
 @Serializable

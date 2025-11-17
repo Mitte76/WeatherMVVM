@@ -6,6 +6,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.defaultMinSize
@@ -13,7 +14,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -26,7 +27,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.Button
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
@@ -77,8 +77,6 @@ fun WeatherView(viewModel: WeatherViewModel, modifier: Modifier = Modifier) {
 
                 ), context, false
             )
-
-            println(viewModel)
         }
     )
 }
@@ -96,13 +94,11 @@ fun WeatherListWithArrows(
     ) {
         val listState = rememberLazyListState()
         val coroutineScope = rememberCoroutineScope()
-
         val showUpArrow by remember {
             derivedStateOf {
                 listState.firstVisibleItemIndex > 0 || listState.firstVisibleItemScrollOffset > 0
             }
         }
-
         val showDownArrow by remember {
             derivedStateOf {
                 val layoutInfo = listState.layoutInfo
@@ -115,15 +111,60 @@ fun WeatherListWithArrows(
 
         Box(modifier = Modifier.weight(1f)) {
             LazyColumn(
-                state = listState,
+//                state = listState,
                 modifier = Modifier.fillMaxSize(),
-                verticalArrangement = Arrangement.Top,
-                horizontalAlignment = Alignment.CenterHorizontally
+                horizontalAlignment = Alignment.CenterHorizontally,
+                contentPadding = PaddingValues(16.dp) // Apply padding here for all items
             ) {
-                items(weatherResponseList) { weatherdata ->
-                    WeatherCardList(weatherdata.weatherResponse)
-                }
+                weatherResponseList.forEach { weatherData ->
+                    val weatherResponse = weatherData.weatherResponse
+                    item(key = "header_${weatherResponse.location.name}") {
+                        Column(
+                            modifier = Modifier
+                                .defaultMinSize(minWidth = 160.dp)
+                                .background(
+                                    CardBg,
+                                    RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
+                                )
+                                .padding(horizontal = 16.dp, vertical = 8.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            if (weatherResponse.location.name.toLowerCase(Locale.current) != "null") {
+                                Text(weatherResponse.location.name)
+                                Spacer(modifier = Modifier.height(4.dp))
+                            }
+                            Text(weatherResponse.current.condition.text)
+                        }
+                    }
+                    itemsIndexed(weatherResponse.forecast.forecastday) { index, day ->
 
+
+                        val shape = when (index) {
+                            0 -> RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
+                            weatherResponse.forecast.forecastday.lastIndex -> RoundedCornerShape(
+                                bottomStart = 20.dp,
+                                bottomEnd = 20.dp
+                            )
+
+                            else -> RoundedCornerShape(0.dp)
+                        }
+                        Row(
+                            modifier = Modifier
+                                .background(
+                                    CardBg,
+                                    shape
+                                )
+                                .padding(16.dp)
+
+                        )
+                        {
+                            DailyForecastRow(day = day)
+                        }
+                    }
+                    item(key = "spacer_${weatherResponse.location.name}") {
+                        Spacer(modifier = Modifier.height(24.dp))
+                    }
+                }
             }
 
             if (showUpArrow) {
@@ -213,53 +254,108 @@ fun CityInputRow(
 
 @Composable
 fun WeatherCardList(weatherResponse: WeatherResponse) {
-    Column(
+    LazyColumn(
         modifier = Modifier
-            .fillMaxSize()
+            .height(500.dp)
             .padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
     ) {
-        Column(
-            modifier = Modifier
-                .defaultMinSize(minWidth = 160.dp)
-                .background(CardBg, RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp))
-                .padding(horizontal = 16.dp, vertical = 8.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            if (weatherResponse.location.name.toLowerCase(Locale.current) != "null") {
-                Text(weatherResponse.location.name)
-                Spacer(modifier = Modifier.height(4.dp))
+        item {
+            Column(
+                modifier = Modifier
+                    .defaultMinSize(minWidth = 160.dp)
+                    .background(CardBg, RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp))
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                if (weatherResponse.location.name.toLowerCase(Locale.current) != "null") {
+                    Text(weatherResponse.location.name)
+                    Spacer(modifier = Modifier.height(4.dp))
+                }
+                Text(weatherResponse.current.condition.text)
             }
-            Text(weatherResponse.current.condition.text)
         }
 
-        Column(
-            modifier = Modifier
-                .background(CardBg, RoundedCornerShape(20.dp))
-                .padding(16.dp)
-        ) {
-            weatherResponse.forecast?.forecastday?.forEach { day ->
-                Text(day.date)
-                LazyRow(modifier = Modifier.fillMaxSize()) {
-                    itemsIndexed(day.hour) { index, hour ->
-                        HourCard(hour, index == day.hour.lastIndex)
-                    }
-                }
-                HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp))
-            }
+        items(
+            items = weatherResponse.forecast.forecastday,
+            key = { day -> day.date_epoch }
+        ) { day ->
+
+            DailyForecastRow(day)
+
         }
     }
 }
 
 @Composable
-fun HourCard(hour: Hour, lastIndex: Boolean) {
+private fun DailyForecastRow(day: com.example.weathermvvm.models.ForecastDay) {
+    // This LazyRow is now stable within its own composable
+    LazyRow(
+        // Use Arrangement.spacedBy for cleaner code
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        // Add content padding for better UI
+        contentPadding = PaddingValues(horizontal = 8.dp)
+    ) {
+        items(
+            items = day.hour,
+            // Provide a stable key for each hour
+            key = { hour -> hour.time_epoch }
+        ) { hour ->
+            // HourCard no longer needs to know its index
+            HourCard(hour = hour)
+        }
+    }
+}
+
+//@Composable
+//fun WeatherCardList(weatherResponse: WeatherResponse) {
+//    Column(
+//        modifier = Modifier
+//            .fillMaxSize()
+//            .padding(16.dp),
+//        horizontalAlignment = Alignment.CenterHorizontally,
+//        verticalArrangement = Arrangement.Center
+//    ) {
+//        Column(
+//            modifier = Modifier
+//                .defaultMinSize(minWidth = 160.dp)
+//                .background(CardBg, RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp))
+//                .padding(horizontal = 16.dp, vertical = 8.dp),
+//            horizontalAlignment = Alignment.CenterHorizontally
+//        ) {
+//            if (weatherResponse.location.name.toLowerCase(Locale.current) != "null") {
+//                Text(weatherResponse.location.name)
+//                Spacer(modifier = Modifier.height(4.dp))
+//            }
+//            Text(weatherResponse.current.condition.text)
+//        }
+//
+//        Column(
+//            modifier = Modifier
+//                .background(CardBg, RoundedCornerShape(20.dp))
+//                .padding(16.dp)
+//        ) {
+//
+//            weatherResponse.forecast.forecastday.forEach { day ->
+//                Text(day.date)
+//                LazyRow(modifier = Modifier.fillMaxSize()) {
+//                    itemsIndexed(day.hour) { index, hour ->
+//                        HourCard(hour, index == day.hour.lastIndex)
+//                    }
+//                }
+//                HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp))
+//            }
+//        }
+//    }
+//}
+
+@Composable
+fun HourCard(hour: Hour/*, lastIndex: Boolean*/) {
     Column(
         modifier = Modifier
-            .height(80.dp)
             .background(HourBg, RoundedCornerShape(8.dp))
             .padding(8.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
+        horizontalAlignment = Alignment.Start,
         verticalArrangement = Arrangement.Center
     ) {
 
@@ -269,6 +365,7 @@ fun HourCard(hour: Hour, lastIndex: Boolean) {
         }.collectAsState(initial = null)
         imageBitmap?.let {
             Image(
+                modifier = Modifier.size(64.dp),
                 bitmap = it.asImageBitmap(),
                 contentDescription = hour.condition.text
             )
@@ -277,9 +374,6 @@ fun HourCard(hour: Hour, lastIndex: Boolean) {
 
         Text(hour.time.split(" ")[1])
         Spacer(modifier = Modifier.height(4.dp))
-        Text(hour.temp_c.toString())
-    }
-    if (!lastIndex) {
-        Spacer(modifier = Modifier.width(8.dp))
+        Text("${hour.temp_c}°")
     }
 }

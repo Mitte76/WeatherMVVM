@@ -92,7 +92,9 @@ object NetworkHelper {
     }
 
     fun getImage(context: Context, url: String) = flow {
-        val filename = url.substring(url.lastIndexOf('/') + 1)
+        val pathSegments = url.split('/')
+        val filename = pathSegments.takeLast(2).joinToString("")
+//        val filename = url.substring(url.lastIndexOf('/') + 1)
         val cacheFile = File(context.cacheDir, filename)
 
         if (cacheFile.exists()) {
