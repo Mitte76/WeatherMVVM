@@ -2,6 +2,7 @@ package com.example.weathermvvm
 
 import android.Manifest
 import android.app.AlertDialog
+import android.app.Application
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -15,20 +16,31 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.annotation.RequiresPermission
+import androidx.compose.animation.core.copy
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import com.example.myapplication.SampleData
 import com.example.weathermvvm.helpers.NetworkHelper
 import com.example.weathermvvm.models.LocationData
 import com.example.weathermvvm.ui.theme.WeatherMVVMTheme
 import com.example.weathermvvm.helpers.PermissionHelper
 import com.example.weathermvvm.helpers.PermissionState
+import com.example.weathermvvm.models.Condition
+import com.example.weathermvvm.models.Current
+import com.example.weathermvvm.models.Forecast
+import com.example.weathermvvm.models.Location
+import com.example.weathermvvm.models.LocationBase
+import com.example.weathermvvm.models.WeatherData
+import com.example.weathermvvm.models.WeatherResponse
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationCallback
 import com.google.android.gms.location.LocationRequest
@@ -187,3 +199,37 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+@Preview(showBackground = true) // Use showBackground = true for better visibility
+@Composable
+private fun WeatherViewPreview() {
+
+    val fakeLondonData = WeatherData(
+        base = LocationBase.CITY,
+        weatherResponse = SampleData.sampleWeatherResponse
+    )
+    val dummyViewModel = FakeWeatherViewModel(initialData = listOf(fakeLondonData)) // Or use a fake Application if needed
+
+    WeatherMVVMTheme {
+        Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
+            WeatherView(
+                viewModel = dummyViewModel,
+                modifier = Modifier.padding(innerPadding)
+            )
+        }
+    }
+}
+
+class FakeWeatherViewModel(
+    // It starts with a predefined list of weather data
+    initialData: List<WeatherData> = listOf()
+) : IWeatherViewModel {
+    // It just holds the data and does nothing else.
+    override val weatherData: List<WeatherData> = initialData
+    override fun fetchWeatherForLocation(
+        location: LocationData,
+        context: Context,
+        forceReload: Boolean
+    ) {
+        TODO("Not yet implemented")
+    }
+}

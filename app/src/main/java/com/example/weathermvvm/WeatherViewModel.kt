@@ -15,10 +15,11 @@ import com.example.weathermvvm.models.WeatherResponse
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
 
-class WeatherViewModel : ViewModel() {
+open class WeatherViewModel(): ViewModel(), IWeatherViewModel {
 
     private val _weatherData = mutableStateListOf<WeatherData>()
-    val weatherData: List<WeatherData> = _weatherData
+    override val weatherData: List<WeatherData> = _weatherData
+
     var permissionGranted by mutableStateOf(false)
     var locationUpdatesRunning by mutableStateOf(false)
 
@@ -26,10 +27,10 @@ class WeatherViewModel : ViewModel() {
         permissionGranted = isGranted
     }
 
-    fun fetchWeatherForLocation(
+    override fun fetchWeatherForLocation(
         location: LocationData,
         context: Context,
-        forceReload: Boolean = false,
+        forceReload: Boolean,
     ) {
 
         val filename = if (location.basedOn == LocationBase.CITY) {
@@ -65,7 +66,7 @@ class WeatherViewModel : ViewModel() {
         }
     }
 
-    private fun handleWeatherData(updated: WeatherData) {
+    fun handleWeatherData(updated: WeatherData) {
         val index = weatherData.indexOfFirst {
             if (updated.base == LocationBase.LAT_LONG) {
                 it.base == LocationBase.LAT_LONG
@@ -81,5 +82,14 @@ class WeatherViewModel : ViewModel() {
 
         println("Weather data updated ${weatherData.size}")
     }
+}
+
+interface IWeatherViewModel {
+    val weatherData: List<WeatherData>
+    fun fetchWeatherForLocation(
+        location: LocationData,
+        context: Context,
+        forceReload: Boolean = false,
+    )
 }
 

@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -64,7 +65,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
 @Composable
-fun WeatherView(viewModel: WeatherViewModel, modifier: Modifier = Modifier) {
+fun WeatherView(viewModel: IWeatherViewModel, modifier: Modifier = Modifier) {
 
     val weatherItems = viewModel.weatherData
     val context = LocalContext.current
@@ -158,6 +159,7 @@ fun WeatherCardList(listState: LazyListState, weatherResponseList: List<WeatherD
                         .background(
                             CardBg, shape
                         )
+                        .fillMaxWidth()
                         .padding(horizontal = 8.dp, vertical = 8.dp),
                 ) {
                     Column {

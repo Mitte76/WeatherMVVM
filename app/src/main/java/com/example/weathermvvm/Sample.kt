@@ -1,0 +1,186 @@
+package com.example.myapplication
+
+import com.example.weathermvvm.models.Astro
+import com.example.weathermvvm.models.Condition
+import com.example.weathermvvm.models.Current
+import com.example.weathermvvm.models.Day
+import com.example.weathermvvm.models.Forecast
+import com.example.weathermvvm.models.ForecastDay
+import com.example.weathermvvm.models.Hour
+import com.example.weathermvvm.models.Location
+import com.example.weathermvvm.models.WeatherResponse
+
+object SampleData {
+    val sampleWeatherResponse = WeatherResponse(
+        location = Location(
+            name = "Sample City",
+            region = "Sample Region",
+            country = "Sample Country",
+            lat = 0.0,
+            lon = 0.0,
+            tz_id = "UTC",
+            localtime_epoch = 1762758000,
+            localtime = "2025-11-10 08:00"
+        ),
+        current = Current(
+            last_updated_epoch = 1762758000,
+            last_updated = "2025-11-10 08:00",
+            temp_c = 5.7,
+            temp_f = 42.2,
+            is_day = 1,
+            condition = Condition(
+                "Patchy rain nearby",
+                "//cdn.weatherapi.com/weather/64x64/day/176.png",
+                1063
+            ),
+            wind_mph = 5.1,
+            wind_kph = 8.3,
+            wind_degree = 49,
+            wind_dir = "NE",
+            pressure_mb = 1014.0,
+            pressure_in = 29.95,
+            precip_mm = 0.04,
+            precip_in = 0.0,
+            humidity = 88,
+            cloud = 100,
+            feelslike_c = 3.8,
+            feelslike_f = 38.9,
+            windchill_c = 3.8,
+            windchill_f = 38.9,
+            heatindex_c = 5.7,
+            heatindex_f = 42.2,
+            dewpoint_c = 3.8,
+            dewpoint_f = 38.8,
+            vis_km = 10.0,
+            vis_miles = 6.0,
+            uv = 0.0,
+            gust_mph = 7.9,
+            gust_kph = 12.8
+        ),
+        forecast = Forecast(
+            forecastday = listOf(
+                ForecastDay(
+                    date = "2025-11-10",
+                    date_epoch = 1762758000,
+                    day = Day(
+                        maxtemp_c = 6.5,
+                        maxtemp_f = 43.7,
+                        mintemp_c = 5.7,
+                        mintemp_f = 42.2,
+                        avgtemp_c = 6.1,
+                        avgtemp_f = 43.0,
+                        maxwind_mph = 5.1,
+                        maxwind_kph = 8.3,
+                        totalprecip_mm = 0.1,
+                        totalprecip_in = 0.0,
+                        totalsnow_cm = 0.0,
+                        avgvis_km = 10.0,
+                        avgvis_miles = 6.0,
+                        avghumidity = 87,
+                        daily_will_it_rain = 1,
+                        daily_chance_of_rain = 70,
+                        daily_will_it_snow = 0,
+                        daily_chance_of_snow = 0,
+                        condition = Condition(
+                            "Patchy rain nearby",
+                            "//cdn.weatherapi.com/weather/64x64/day/176.png",
+                            1063
+                        ),
+                        uv = 0.3
+                    ),
+                    astro = Astro(
+                        sunrise = "07:30 AM",
+                        sunset = "04:30 PM",
+                        moonrise = "05:00 PM",
+                        moonset = "07:00 AM",
+                        moon_phase = "Waxing Crescent",
+                        moon_illumination = 25,
+                        is_moon_up = 0,
+                        is_sun_up = 1
+                    ),
+                    hour = listOf(
+                        Hour(
+                            time_epoch = 1762758000,
+                            time = "2025-11-10 08:00",
+                            temp_c = 5.7,
+                            temp_f = 42.2,
+                            is_day = 1,
+                            condition = Condition(
+                                "Patchy rain nearby",
+                                "//cdn.weatherapi.com/weather/64x64/day/176.png",
+                                1063
+                            ),
+                            wind_mph = 5.1,
+                            wind_kph = 8.3,
+                            wind_degree = 49,
+                            wind_dir = "NE",
+                            pressure_mb = 1014.0,
+                            pressure_in = 29.95,
+                            precip_mm = 0.04,
+                            precip_in = 0.0,
+                            snow_cm = 0.0,
+                            humidity = 88,
+                            cloud = 100,
+                            feelslike_c = 3.8,
+                            feelslike_f = 38.9,
+                            windchill_c = 3.8,
+                            windchill_f = 38.9,
+                            heatindex_c = 5.7,
+                            heatindex_f = 42.2,
+                            dewpoint_c = 3.8,
+                            dewpoint_f = 38.8,
+                            will_it_rain = 1,
+                            chance_of_rain = 66,
+                            will_it_snow = 0,
+                            chance_of_snow = 0,
+                            vis_km = 10.0,
+                            vis_miles = 6.0,
+                            gust_mph = 7.9,
+                            gust_kph = 12.8,
+                            uv = 0.0
+                        ),Hour(
+                            time_epoch = 1762758001,
+                            time = "2025-11-10 09:00",
+                            temp_c = 5.7,
+                            temp_f = 42.2,
+                            is_day = 1,
+                            condition = Condition(
+                                "Patchy rain nearby",
+                                "//cdn.weatherapi.com/weather/64x64/day/176.png",
+                                1063
+                            ),
+                            wind_mph = 5.1,
+                            wind_kph = 8.3,
+                            wind_degree = 49,
+                            wind_dir = "NE",
+                            pressure_mb = 1014.0,
+                            pressure_in = 29.95,
+                            precip_mm = 0.04,
+                            precip_in = 0.0,
+                            snow_cm = 0.0,
+                            humidity = 88,
+                            cloud = 100,
+                            feelslike_c = 3.8,
+                            feelslike_f = 38.9,
+                            windchill_c = 3.8,
+                            windchill_f = 38.9,
+                            heatindex_c = 5.7,
+                            heatindex_f = 42.2,
+                            dewpoint_c = 3.8,
+                            dewpoint_f = 38.8,
+                            will_it_rain = 1,
+                            chance_of_rain = 66,
+                            will_it_snow = 0,
+                            chance_of_snow = 0,
+                            vis_km = 10.0,
+                            vis_miles = 6.0,
+                            gust_mph = 7.9,
+                            gust_kph = 12.8,
+                            uv = 0.0
+                        )
+                    )
+                )
+            )
+        )
+    )
+}
