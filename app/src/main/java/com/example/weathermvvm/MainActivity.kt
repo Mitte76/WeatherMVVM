@@ -2,7 +2,6 @@ package com.example.weathermvvm
 
 import android.Manifest
 import android.app.AlertDialog
-import android.app.Application
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -16,7 +15,6 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.annotation.RequiresPermission
-import androidx.compose.animation.core.copy
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
@@ -34,22 +32,22 @@ import com.example.weathermvvm.models.LocationData
 import com.example.weathermvvm.ui.theme.WeatherMVVMTheme
 import com.example.weathermvvm.helpers.PermissionHelper
 import com.example.weathermvvm.helpers.PermissionState
-import com.example.weathermvvm.models.Condition
-import com.example.weathermvvm.models.Current
-import com.example.weathermvvm.models.Forecast
-import com.example.weathermvvm.models.Location
 import com.example.weathermvvm.models.LocationBase
 import com.example.weathermvvm.models.WeatherData
-import com.example.weathermvvm.models.WeatherResponse
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationCallback
 import com.google.android.gms.location.LocationRequest
 import com.google.android.gms.location.LocationResult
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
+import kotlinx.collections.immutable.ImmutableList
+import kotlinx.collections.immutable.toImmutableList
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 
 class MainActivity : ComponentActivity() {
-    private val viewModel by viewModels<WeatherViewModel>()
+    private val viewModel by viewModels<DefaultWeatherViewModel>()
     private val permissions = arrayOf(
         Manifest.permission.ACCESS_FINE_LOCATION,
         Manifest.permission.ACCESS_COARSE_LOCATION
@@ -153,7 +151,7 @@ class MainActivity : ComponentActivity() {
                         LocationData(
                             latitude = location.latitude,
                             longitude = location.longitude,
-                        ), context
+                        )
                         ,true
                     )
                     println("Location: ${location.latitude}, ${location.longitude}")
@@ -199,7 +197,7 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-@Preview(showBackground = true) // Use showBackground = true for better visibility
+@Preview(showBackground = true)
 @Composable
 private fun WeatherViewPreview() {
 
@@ -207,7 +205,7 @@ private fun WeatherViewPreview() {
         base = LocationBase.CITY,
         weatherResponse = SampleData.sampleWeatherResponse
     )
-    val dummyViewModel = FakeWeatherViewModel(initialData = listOf(fakeLondonData)) // Or use a fake Application if needed
+    val dummyViewModel = FakeWeatherViewModel(initialData = listOf(fakeLondonData))
 
     WeatherMVVMTheme {
         Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
@@ -220,16 +218,14 @@ private fun WeatherViewPreview() {
 }
 
 class FakeWeatherViewModel(
-    // It starts with a predefined list of weather data
     initialData: List<WeatherData> = listOf()
-) : IWeatherViewModel {
-    // It just holds the data and does nothing else.
-    override val weatherData: List<WeatherData> = initialData
+) : WeatherViewModel {
+    private val _weatherData = MutableStateFlow(initialData.toImmutableList())
+
+    override val weatherData: StateFlow<ImmutableList<WeatherData>> = _weatherData.asStateFlow()
+
     override fun fetchWeatherForLocation(
         location: LocationData,
-        context: Context,
         forceReload: Boolean
-    ) {
-        TODO("Not yet implemented")
-    }
+    ) {}
 }

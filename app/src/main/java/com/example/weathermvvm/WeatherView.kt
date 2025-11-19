@@ -1,5 +1,8 @@
 package com.example.weathermvvm
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -7,6 +10,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -43,12 +47,21 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Outline
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.weathermvvm.helpers.NetworkHelper
@@ -61,22 +74,19 @@ import com.example.weathermvvm.ui.theme.CardBg
 import com.example.weathermvvm.ui.theme.DayBg
 import com.example.weathermvvm.ui.theme.HourBg
 import com.example.weathermvvm.ui.theme.TextColor
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
 @Composable
-fun WeatherView(viewModel: IWeatherViewModel, modifier: Modifier = Modifier) {
+fun WeatherView(viewModel: WeatherViewModel, modifier: Modifier = Modifier) {
 
-    val weatherItems = viewModel.weatherData
-    val context = LocalContext.current
-
+    val weatherItems by viewModel.weatherData.collectAsState()
     WeatherListWithArrows(
         weatherResponseList = weatherItems, modifier = modifier, onCitySubmit = {
             viewModel.fetchWeatherForLocation(
                 LocationData(
                     city = it, basedOn = LocationBase.CITY
 
-                ), context, false
+                ), false
             )
         })
 }
@@ -89,6 +99,9 @@ fun WeatherListWithArrows(
 ) {
     val listState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
+    val showUpArrow by remember { derivedStateOf { listState.canScrollBackward } }
+    val showDownArrow by remember { derivedStateOf { listState.canScrollForward } }
+
     Column(
         modifier = modifier
             .background(AppBg),
@@ -106,12 +119,39 @@ fun WeatherListWithArrows(
         )
         {
             WeatherCardList(listState = listState, weatherResponseList = weatherResponseList)
-            ScrollArrowUp(listState, coroutineScope)
-            ScrollArrowDown(listState, coroutineScope)
+
+            ScrollArrow(
+                isVisible = showUpArrow,
+                alignment = Alignment.TopCenter,
+                icon = Icons.Default.KeyboardArrowUp,
+                onClick = {
+                    coroutineScope.launch {
+                        listState.animateScrollToItem(0)
+                    }
+                }
+            )
+
+            ScrollArrow(
+                isVisible = showDownArrow,
+                alignment = Alignment.BottomCenter,
+                icon = Icons.Default.KeyboardArrowDown,
+                onClick = {
+                    coroutineScope.launch {
+                        val lastIndex = listState.layoutInfo.totalItemsCount - 1
+                        if (lastIndex >= 0) {
+                            listState
+                                .animateScrollToItem(
+                                    index = lastIndex,
+                                    scrollOffset = listState.layoutInfo.viewportSize.height
+                                )
+                        }
+                    }
+                }
+            )
         }
+
         CityInputRow(onSubmit = onCitySubmit)
     }
-
 }
 
 @Composable
@@ -125,55 +165,92 @@ fun WeatherCardList(listState: LazyListState, weatherResponseList: List<WeatherD
         weatherResponseList.forEach { weatherData ->
             val weatherResponse = weatherData.weatherResponse
             item(key = "header_${weatherResponse.location.name}") {
-                Box(
+                Row(
                     modifier = Modifier
-                        .defaultMinSize(minWidth = 160.dp)
-                        .background(
-                            CardBg,
-                            RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
-                        )
-                        .padding(horizontal = 8.dp),
-                    contentAlignment = Alignment.Center
+                        .fillMaxWidth()
+                        .height(IntrinsicSize.Min),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Column(
+                    InvertedCorner(
+                        corner = Corner.BottomRight,
+                        cornerRadius = 16.dp,
+                        color = CardBg,
                         modifier = Modifier
-                            .padding(8.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
+                            .weight(1f)
+                            .fillMaxHeight()
+                    )
+                    Box(
+                        modifier = Modifier
+                            .defaultMinSize(minWidth = 160.dp)
+                            .background(
+                                CardBg,
+                                RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
+                            )
+                            .padding(horizontal = 8.dp),
+                        contentAlignment = Alignment.Center
                     ) {
-                        Text(weatherResponse.location.name, color = TextColor)
-                        Text(weatherResponse.current.condition.text, color = TextColor)
+                        Column(
+                            modifier = Modifier
+                                .padding(8.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Text(weatherResponse.location.name, color = TextColor)
+                            Text(weatherResponse.current.condition.text, color = TextColor)
+                        }
                     }
+                    InvertedCorner(
+                        corner = Corner.BottomLeft,
+                        cornerRadius = 16.dp,
+                        color = CardBg,
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxHeight()
+                    )
                 }
             }
             itemsIndexed(weatherResponse.forecast.forecastday) { index, day ->
+                // This shape logic for the outer card is correct and should remain.
                 val shape = when (index) {
-                    0 -> RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
+                    0 -> RoundedCornerShape(topStart = 16.dp,topEnd = 16.dp)
                     weatherResponse.forecast.forecastday.lastIndex -> RoundedCornerShape(
                         bottomStart = 16.dp, bottomEnd = 16.dp
                     )
 
                     else -> RoundedCornerShape(0.dp)
                 }
-                Row(
+
+                Column(
                     modifier = Modifier
-                        .background(
-                            CardBg, shape
-                        )
+                        .background(CardBg, shape)
                         .fillMaxWidth()
-                        .padding(horizontal = 8.dp, vertical = 8.dp),
+                        .padding(horizontal = 12.dp, vertical = 12.dp)
                 ) {
-                    Column {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(IntrinsicSize.Min),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
                         Text(
-                            day.date, modifier = Modifier
+                            day.date,
+                            modifier = Modifier
                                 .background(
                                     DayBg,
-                                    RoundedCornerShape(8.dp, 8.dp)
+                                    RoundedCornerShape(12.dp, 12.dp)
                                 )
                                 .padding(8.dp),
                             color = TextColor
                         )
-                        DailyForecastRow(day = day)
+                        InvertedCorner(
+                            corner = Corner.BottomLeft,
+                            cornerRadius = 8.dp,
+                            color = DayBg,
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxHeight()
+                        )
                     }
+                    DailyForecastRow(day = day)
                 }
             }
             item {
@@ -184,64 +261,27 @@ fun WeatherCardList(listState: LazyListState, weatherResponseList: List<WeatherD
 }
 
 @Composable
-private fun BoxScope.ScrollArrowUp(listState: LazyListState, scope: CoroutineScope) {
-    val showUp by remember {
-        derivedStateOf {
-            listState.firstVisibleItemIndex > 0 || listState.firstVisibleItemScrollOffset > 0
-        }
-    }
-
-    if (showUp) {
+private fun BoxScope.ScrollArrow(
+    isVisible: Boolean,
+    alignment: Alignment,
+    icon: ImageVector,
+    onClick: () -> Unit
+) {
+    AnimatedVisibility(
+        visible = isVisible,
+        modifier = Modifier.align(alignment),
+        enter = fadeIn(),
+        exit = fadeOut()
+    ) {
         Icon(
-
-            imageVector = Icons.Default.KeyboardArrowUp,
-            contentDescription = "Scroll up",
+            imageVector = icon,
+            contentDescription = null,
             tint = Color.White,
             modifier = Modifier
-                .align(Alignment.TopCenter)
                 .background(Color.Black.copy(alpha = 0.2f), RoundedCornerShape(50))
                 .padding(4.dp)
-                .clickable {
-                    scope.launch {
-                        listState.animateScrollToItem(0)
-                    }
-                })
-    }
-}
-
-@Composable
-private fun BoxScope.ScrollArrowDown(listState: LazyListState, scope: CoroutineScope) {
-    val showDown by remember {
-        derivedStateOf {
-            val layoutInfo = listState.layoutInfo
-            val visible = layoutInfo.visibleItemsInfo
-            if (visible.isEmpty()) return@derivedStateOf false
-            val last = visible.last()
-            last.offset + last.size > layoutInfo.viewportEndOffset
-        }
-    }
-
-    if (showDown) {
-
-        Icon(
-            imageVector = Icons.Default.KeyboardArrowDown,
-            contentDescription = "Scroll down",
-            tint = Color.White,
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .background(Color.Black.copy(alpha = 0.2f), RoundedCornerShape(50))
-                .padding(4.dp)
-                .clickable {
-                    scope.launch {
-                        val lastIndex = listState.layoutInfo.totalItemsCount - 1
-                        if (lastIndex >= 0) {
-                            listState.animateScrollToItem(
-                                index = lastIndex,
-                                scrollOffset = listState.layoutInfo.viewportSize.height
-                            )
-                        }
-                    }
-                })
+                .clickable(onClick = onClick)
+        )
     }
 }
 
