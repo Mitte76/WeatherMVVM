@@ -23,3 +23,5 @@ val DayBg = Color(0xFF21262D)
 // The background for each individual hour card. The lightest element for emphasis.
 val HourBg = Color(0xFF30363D)
 val TextColor = Color(0xFFFFFFFF)
+
+val AccentBlue= Color(0xFF58A6FF)

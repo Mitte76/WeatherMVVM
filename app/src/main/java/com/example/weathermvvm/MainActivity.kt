@@ -15,25 +15,21 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.annotation.RequiresPermission
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import com.example.myapplication.SampleData
 import com.example.weathermvvm.helpers.NetworkHelper
-import com.example.weathermvvm.models.LocationData
-import com.example.weathermvvm.ui.theme.WeatherMVVMTheme
 import com.example.weathermvvm.helpers.PermissionHelper
 import com.example.weathermvvm.helpers.PermissionState
 import com.example.weathermvvm.models.LocationBase
+import com.example.weathermvvm.models.LocationData
 import com.example.weathermvvm.models.WeatherData
+import com.example.weathermvvm.ui.theme.WeatherMVVMTheme
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationCallback
 import com.google.android.gms.location.LocationRequest
@@ -62,12 +58,9 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             WeatherMVVMTheme {
-                Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    WeatherView(
-                        viewModel,
-                        modifier = Modifier.padding(innerPadding)
-                    )
-                }
+                WeatherView(
+                    viewModel,
+                )
             }
         }
     }
@@ -151,8 +144,7 @@ class MainActivity : ComponentActivity() {
                         LocationData(
                             latitude = location.latitude,
                             longitude = location.longitude,
-                        )
-                        ,true
+                        ), true
                     )
                     println("Location: ${location.latitude}, ${location.longitude}")
                 }
@@ -208,12 +200,12 @@ private fun WeatherViewPreview() {
     val dummyViewModel = FakeWeatherViewModel(initialData = listOf(fakeLondonData))
 
     WeatherMVVMTheme {
-        Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-            WeatherView(
-                viewModel = dummyViewModel,
-                modifier = Modifier.padding(innerPadding)
-            )
-        }
+//        Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
+        WeatherView(
+            viewModel = dummyViewModel,
+//                modifier = Modifier.padding(innerPadding)
+        )
+//        }
     }
 }
 
@@ -227,5 +219,6 @@ class FakeWeatherViewModel(
     override fun fetchWeatherForLocation(
         location: LocationData,
         forceReload: Boolean
-    ) {}
+    ) {
+    }
 }
