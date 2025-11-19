@@ -200,12 +200,9 @@ private fun WeatherViewPreview() {
     val dummyViewModel = FakeWeatherViewModel(initialData = listOf(fakeLondonData))
 
     WeatherMVVMTheme {
-//        Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
         WeatherView(
             viewModel = dummyViewModel,
-//                modifier = Modifier.padding(innerPadding)
         )
-//        }
     }
 }
 

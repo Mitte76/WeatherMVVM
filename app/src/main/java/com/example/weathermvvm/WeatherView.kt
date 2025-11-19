@@ -160,13 +160,13 @@ fun WeatherListWithArrows(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(Color.Black.copy(alpha = 0.5f)) // Dim the background
-                    .clickable( // Make the whole area clickable
+                    .background(Color.Black.copy(alpha = 0.5f))
+                    .clickable(
                         interactionSource = remember { MutableInteractionSource() },
-                        indication = null, // No ripple effect
+                        indication = null,
                         onClick = {
                             showAddCityInput = false
-                        } // Clicking it dismisses the input
+                        }
                     )
             )
         }
@@ -174,24 +174,24 @@ fun WeatherListWithArrows(
         AnimatedVisibility(
             modifier = Modifier.align(Alignment.BottomCenter),
             visible = showAddCityInput,
-            enter = slideInVertically(initialOffsetY = { it }), // Slide in from the bottom
-            exit = slideOutVertically(targetOffsetY = { it })  // Slide out to the bottom
+            enter = slideInVertically(initialOffsetY = { it }),
+            exit = slideOutVertically(targetOffsetY = { it })
         ) {
             CityInputRow(
                 onSubmit = { city ->
                     onCitySubmit(city)
                     showAddCityInput = false
                 },
-                modifier = Modifier.clickable(enabled = false) {} // Consume clicks
+                modifier = Modifier.clickable(enabled = false) {}
             )
         }
         if (!showAddCityInput) {
             FloatingActionButton(
-                onClick = { showAddCityInput = true }, // Tapping it enters "add mode"
+                onClick = { showAddCityInput = true },
                 modifier = Modifier
-                    .align(Alignment.BottomEnd) // Position it at the bottom-right
+                    .align(Alignment.BottomEnd)
                     .padding(16.dp),
-                containerColor = AccentBlue // Use a nice accent color
+                containerColor = AccentBlue
             ) {
                 Icon(Icons.Default.Add, contentDescription = "Add city")
             }
