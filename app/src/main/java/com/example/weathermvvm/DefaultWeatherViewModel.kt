@@ -14,6 +14,7 @@ import com.example.weathermvvm.models.WeatherResponse
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.PersistentList
 import kotlinx.collections.immutable.persistentListOf
+import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -21,9 +22,10 @@ import kotlinx.serialization.json.Json
 
 open class DefaultWeatherViewModel(application: Application) : AndroidViewModel(application),
     WeatherViewModel {
-
-    private val _weatherData = MutableStateFlow<PersistentList<WeatherData>>(persistentListOf())
+    private val _weatherData = MutableStateFlow<ImmutableList<WeatherData>>(persistentListOf())
     override val weatherData: StateFlow<ImmutableList<WeatherData>> = _weatherData
+//    private val _weatherData = MutableStateFlow<PersistentList<WeatherData>>(persistentListOf())
+//    override val weatherData: StateFlow<ImmutableList<WeatherData>> = _weatherData
 
     var permissionGranted by mutableStateOf(false)
     var locationUpdatesRunning by mutableStateOf(false)
@@ -58,7 +60,7 @@ open class DefaultWeatherViewModel(application: Application) : AndroidViewModel(
                     val weatherResponse = json.decodeFromString<WeatherResponse>(data)
                     handleWeatherData(WeatherData(location.basedOn, weatherResponse))
                 }.onFailure {
-                    TODO("Handle error stuff")
+                    //TODO handle error
                 }
                 println("Fetching weather data for $url")
             }
@@ -78,14 +80,20 @@ open class DefaultWeatherViewModel(application: Application) : AndroidViewModel(
             }
         }
 
-        val newList = if (index >= 0) {
-            currentList.set(index, updated)
+        // 1. Create a standard, MUTABLE list from the current immutable list.
+        val mutableList = currentList.toMutableList()
+
+        // 2. Perform the update on the MUTABLE list.
+        if (index >= 0) {
+            mutableList[index] = updated // Standard list 'set' syntax
         } else {
-            currentList.add(updated)        }
+            mutableList.add(updated)    // Standard list 'add' syntax
+        }
 
-        _weatherData.value = newList
+        // 3. Assign the new, converted-back-to-immutable list to the StateFlow.
+        _weatherData.value = mutableList.toImmutableList()
 
-        println("Weather data updated. Count: ${newList.size}")
+        println("Weather data updated. Count: ${_weatherData.value.size}")
     }
 }
 

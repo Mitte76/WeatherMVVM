@@ -65,7 +65,6 @@ object NetworkHelper {
 
     fun clearCache(context: Context) {
         val cacheDir = context.filesDir
-        // List all files in the directory
         val files = cacheDir.listFiles()
         println("Clearing cache...")
         files?.filter { it.isFile && it.extension == "json" }
@@ -94,13 +93,11 @@ object NetworkHelper {
     fun getImage(context: Context, url: String) = flow {
         val pathSegments = url.split('/')
         val filename = pathSegments.takeLast(2).joinToString("")
-//        val filename = url.substring(url.lastIndexOf('/') + 1)
         val cacheFile = File(context.cacheDir, filename)
 
         if (cacheFile.exists()) {
             val bitmap = BitmapFactory.decodeFile(cacheFile.absolutePath)
             if (bitmap != null) {
-                println("Returning bitmap from cache $filename")
                 emit(bitmap)
                 return@flow
             }

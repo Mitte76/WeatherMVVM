@@ -3,6 +3,7 @@ package com.example.weathermvvm
 import androidx.compose.foundation.Canvas
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
@@ -21,7 +22,7 @@ fun InvertedCorner(
     color: Color,
     modifier: Modifier = Modifier
 ) {
-    Canvas(modifier = modifier) {
+    Canvas(modifier = modifier.clipToBounds()) {
         val radius = cornerRadius.toPx()
 
         val path = Path().apply {

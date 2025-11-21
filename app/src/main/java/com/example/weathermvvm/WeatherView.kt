@@ -1,8 +1,13 @@
 package com.example.weathermvvm
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.Image
@@ -29,21 +34,19 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
+import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
@@ -56,16 +59,23 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.text.PlatformTextStyle
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.weathermvvm.Constants.DAY_ITEM_HEIGHT
+import com.example.weathermvvm.Constants.HOURS_ROW_HEIGHT
+import com.example.weathermvvm.Constants.HOUR_CARD_HEIGHT
 import com.example.weathermvvm.helpers.NetworkHelper
+import com.example.weathermvvm.models.ForecastDay
 import com.example.weathermvvm.models.Hour
 import com.example.weathermvvm.models.LocationBase
 import com.example.weathermvvm.models.LocationData
@@ -76,245 +86,163 @@ import com.example.weathermvvm.ui.theme.CardBg
 import com.example.weathermvvm.ui.theme.DayBg
 import com.example.weathermvvm.ui.theme.HourBg
 import com.example.weathermvvm.ui.theme.TextColor
+import kotlinx.collections.immutable.ImmutableList
+import kotlinx.collections.immutable.PersistentMap
+import kotlinx.collections.immutable.persistentMapOf
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
 @Composable
 fun WeatherView(viewModel: WeatherViewModel) {
-
     val weatherItems by viewModel.weatherData.collectAsState()
-    WeatherListWithArrows(
-        weatherResponseList = weatherItems, onCitySubmit = {
+    val onCitySubmit = remember(viewModel) {
+        { city: String ->
             viewModel.fetchWeatherForLocation(
                 LocationData(
-                    city = it, basedOn = LocationBase.CITY
+                    city = city, basedOn = LocationBase.CITY
                 ), false
             )
         }
+    }
+    WeatherScreen(
+        weatherItems,
+        onCitySubmit = onCitySubmit
     )
 }
 
 @Composable
-fun WeatherListWithArrows(
-    weatherResponseList: List<WeatherData>,
-    modifier: Modifier = Modifier,
+fun WeatherScreen(
+    weatherResponseList: ImmutableList<WeatherData>,
     onCitySubmit: (String) -> Unit
 ) {
-    val listState = rememberLazyListState()
-    val coroutineScope = rememberCoroutineScope()
-    val showUpArrow by remember { derivedStateOf { listState.canScrollBackward } }
-    val showDownArrow by remember { derivedStateOf { listState.canScrollForward } }
-    var showAddCityInput by remember { mutableStateOf(false) }
 
-    Box(modifier = modifier.fillMaxSize()) {
-        Column(
-            modifier = modifier
-                .fillMaxSize()
-                .background(AppBg),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Text(
-                "Weather test app",
-                color = TextColor, fontSize = 24.sp,
-                modifier = Modifier
-                    .padding(20.dp)
-            )
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-            )
-            {
-                WeatherCardList(listState = listState, weatherResponseList = weatherResponseList)
+    Box(modifier = Modifier.fillMaxSize()) {
 
-                ScrollArrow(
-                    isVisible = showUpArrow,
-                    alignment = Alignment.TopCenter,
-                    icon = Icons.Default.KeyboardArrowUp,
-                    onClick = {
-                        coroutineScope.launch {
-                            listState.animateScrollToItem(0)
-                        }
-                    }
-                )
+        WeatherCardContainer(weatherResponseList)
 
-                ScrollArrow(
-                    isVisible = showDownArrow,
-                    alignment = Alignment.BottomCenter,
-                    icon = Icons.Default.KeyboardArrowDown,
-                    onClick = {
-                        coroutineScope.launch {
-                            val lastIndex = listState.layoutInfo.totalItemsCount - 1
-                            if (lastIndex >= 0) {
-                                listState
-                                    .animateScrollToItem(
-                                        index = lastIndex,
-                                        scrollOffset = listState.layoutInfo.viewportSize.height
-                                    )
-                            }
-                        }
-                    }
-                )
+        var showAddCityInput by remember { mutableStateOf(false) }
+
+        val onDismiss = remember { { showAddCityInput = false } }
+        val onSubmit = remember(onCitySubmit) {
+            { city: String ->
+                onCitySubmit(city)
+                showAddCityInput = false
             }
         }
 
-        if (showAddCityInput) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(Color.Black.copy(alpha = 0.5f))
-                    .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null,
-                        onClick = {
-                            showAddCityInput = false
-                        }
-                    )
-            )
-        }
 
-        AnimatedVisibility(
-            modifier = Modifier.align(Alignment.BottomCenter),
-            visible = showAddCityInput,
-            enter = slideInVertically(initialOffsetY = { it }),
-            exit = slideOutVertically(targetOffsetY = { it })
-        ) {
-            CityInputRow(
-                onSubmit = { city ->
-                    onCitySubmit(city)
-                    showAddCityInput = false
-                },
-                modifier = Modifier.clickable(enabled = false) {}
-            )
-        }
+        AddCityInputOverlay(
+            showAddCityInput = showAddCityInput,
+            onDismiss = onDismiss,
+            onSubmit = onSubmit
+        )
+
         if (!showAddCityInput) {
+            val onFabClick = remember { { showAddCityInput = true } }
             FloatingActionButton(
-                onClick = { showAddCityInput = true },
+                onClick = onFabClick,
                 modifier = Modifier
-                    .align(Alignment.BottomEnd)
+                    .align(Alignment.BottomCenter)
                     .padding(16.dp),
                 containerColor = AccentBlue
             ) {
                 Icon(Icons.Default.Add, contentDescription = "Add city")
             }
         }
-    }
 
+    }
 }
 
 @Composable
-fun WeatherCardList(listState: LazyListState, weatherResponseList: List<WeatherData>) {
-    LazyColumn(
-        state = listState,
-        modifier = Modifier.fillMaxSize(),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        contentPadding = PaddingValues(8.dp)
+fun WeatherCardContainer(weatherResponseList: ImmutableList<WeatherData>) {
+    val listState = rememberLazyListState()
+    val coroutineScope = rememberCoroutineScope()
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(AppBg),
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        weatherResponseList.forEach { weatherData ->
-            val weatherResponse = weatherData.weatherResponse
-            item(key = "header_${weatherResponse.location.name}") {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(IntrinsicSize.Min),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    InvertedCorner(
-                        corner = Corner.BottomRight,
-                        cornerRadius = 16.dp,
-                        color = CardBg,
-                        modifier = Modifier
-                            .weight(1f)
-                            .fillMaxHeight()
-                    )
-                    Box(
-                        modifier = Modifier
-                            .defaultMinSize(minWidth = 160.dp)
-                            .background(
-                                CardBg,
-                                RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
-                            )
-                            .padding(horizontal = 8.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Column(
-                            modifier = Modifier
-                                .padding(8.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally
-                        ) {
-                            Text(weatherResponse.location.name, color = TextColor)
-                            Text(weatherResponse.current.condition.text, color = TextColor)
-                        }
-                    }
-                    InvertedCorner(
-                        corner = Corner.BottomLeft,
-                        cornerRadius = 16.dp,
-                        color = CardBg,
-                        modifier = Modifier
-                            .weight(1f)
-                            .fillMaxHeight()
-                    )
-                }
-            }
-            itemsIndexed(weatherResponse.forecast.forecastday) { index, day ->
-                val shape = when (index) {
-                    0 -> RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
-                    weatherResponse.forecast.forecastday.lastIndex -> RoundedCornerShape(
-                        bottomStart = 16.dp, bottomEnd = 16.dp
-                    )
+        Text(
+            "Weather test app",
+            color = TextColor, fontSize = 24.sp,
+            modifier = Modifier.padding(20.dp)
+        )
 
-                    else -> RoundedCornerShape(0.dp)
-                }
+        Box(modifier = Modifier.weight(1f)) {
+            StableWeatherCards(
+                listState = listState,
+                weatherResponseList = weatherResponseList
+            )
 
-                Column(
-                    modifier = Modifier
-                        .background(CardBg, shape)
-                        .fillMaxWidth()
-                        .padding(horizontal = 12.dp, vertical = 12.dp)
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(IntrinsicSize.Min),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            day.date,
-                            modifier = Modifier
-                                .background(
-                                    DayBg,
-                                    RoundedCornerShape(12.dp, 12.dp)
-                                )
-                                .padding(8.dp),
-                            color = TextColor
-                        )
-                        InvertedCorner(
-                            corner = Corner.BottomLeft,
-                            cornerRadius = 8.dp,
-                            color = DayBg,
-                            modifier = Modifier
-                                .weight(1f)
-                                .fillMaxHeight()
-                        )
-                    }
-                    DailyForecastRow(day = day)
-                }
-            }
-            item {
-                Spacer(modifier = Modifier.height(48.dp))
-            }
+            ScrollArrowWithState(listState, coroutineScope)
         }
     }
 }
 
 @Composable
-private fun BoxScope.ScrollArrow(
+private fun StableWeatherCards(
+    listState: LazyListState,
+    weatherResponseList: ImmutableList<WeatherData>
+) {
+    WeatherCards(
+        listState = listState,
+        weatherResponseList = weatherResponseList
+    )
+}
+
+@Composable
+private fun BoxScope.ScrollArrowWithState(
+    listState: LazyListState,
+    coroutineScope: CoroutineScope
+) {
+    val showUpArrow by remember { derivedStateOf { listState.canScrollBackward } }
+    val showDownArrow by remember { derivedStateOf { listState.canScrollForward } }
+    val onUpClick = remember(coroutineScope, listState) {
+        fun() {
+            coroutineScope.launch { listState.animateScrollToItem(0) }
+        }
+    }
+
+    val onDownClick = remember(coroutineScope, listState) {
+        fun() {
+            coroutineScope.launch {
+                val lastIndex = listState.layoutInfo.totalItemsCount - 1
+                if (lastIndex >= 0) listState.animateScrollToItem(lastIndex)
+            }
+        }
+    }
+
+    ScrollArrow(
+        isVisible = showUpArrow,
+        modifier = Modifier
+            .align(Alignment.TopEnd)
+            .padding(end = 16.dp),
+        icon = Icons.Default.KeyboardArrowUp,
+        onClick = onUpClick
+    )
+
+    ScrollArrow(
+        isVisible = showDownArrow,
+        modifier = Modifier
+            .align(Alignment.BottomEnd)
+            .padding(end = 16.dp),
+        icon = Icons.Default.KeyboardArrowDown,
+        onClick = onDownClick
+    )
+}
+
+@Composable
+private fun ScrollArrow(
     isVisible: Boolean,
-    alignment: Alignment,
+    modifier: Modifier = Modifier,
     icon: ImageVector,
     onClick: () -> Unit
 ) {
     AnimatedVisibility(
         visible = isVisible,
-        modifier = Modifier.align(alignment),
+        modifier = modifier,
         enter = fadeIn(),
         exit = fadeOut()
     ) {
@@ -327,6 +255,35 @@ private fun BoxScope.ScrollArrow(
                 .padding(4.dp)
                 .clickable(onClick = onClick)
         )
+    }
+}
+
+@Composable
+fun BoxScope.AddCityInputOverlay(
+    showAddCityInput: Boolean,
+    onDismiss: () -> Unit,
+    onSubmit: (String) -> Unit
+) {
+    if (!showAddCityInput) return
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black.copy(alpha = 0.5f))
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = onDismiss
+            )
+    )
+
+    AnimatedVisibility(
+        visible = showAddCityInput,
+        modifier = Modifier.align(Alignment.BottomCenter),
+        enter = slideInVertically(initialOffsetY = { it }),
+        exit = slideOutVertically(targetOffsetY = { it })
+    ) {
+        CityInputRow(onSubmit = onSubmit, modifier = Modifier.clickable(enabled = false) {})
     }
 }
 
@@ -371,28 +328,226 @@ fun CityInputRow(
             )
 
             Spacer(modifier = Modifier.width(8.dp))
-
-            Button(
-                modifier = Modifier.fillMaxHeight(),
-                shape = RoundedCornerShape(8.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = AccentBlue),
-                onClick = {
+            val onButtonClick = remember(onSubmit, keyboardController) {
+                {
                     if (text.text.isNotBlank()) {
                         onSubmit(text.text)
                         text = TextFieldValue("")
                         keyboardController?.hide()
                     }
-                }) {
+                }
+            }
+            Button(
+                modifier = Modifier.fillMaxHeight(),
+                shape = RoundedCornerShape(8.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = AccentBlue),
+                onClick = onButtonClick
+            )
+            {
                 Text("Add")
             }
         }
     }
 }
 
+
 @Composable
-fun DailyForecastRow(day: com.example.weathermvvm.models.ForecastDay) {
+fun WeatherCards(
+    listState: LazyListState,
+    weatherResponseList: ImmutableList<WeatherData>
+) {
+    var expandedCardIndices by remember {
+        mutableStateOf<PersistentMap<String, Boolean>>(
+            persistentMapOf()
+        )
+    }
+    LazyColumn(
+        state = listState,
+        modifier = Modifier.fillMaxSize(),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        contentPadding = PaddingValues(8.dp)
+    ) {
+        items(weatherResponseList) { weatherData ->
+            val name = weatherData.weatherResponse.location.name
+            val isExpanded = expandedCardIndices[name] ?: false
+            WeatherCard(
+                weatherData,
+                isExpanded,
+                onHeaderClick = {
+                    expandedCardIndices = expandedCardIndices.put(name, !isExpanded)
+                }
+            )
+//            TODO Put listState in weatherData?
+        }
+
+        item {
+            Spacer(modifier = Modifier.height(60.dp))
+        }
+    }
+
+}
+
+@Composable
+fun WeatherCard(
+    weatherData: WeatherData,
+    isExpanded: Boolean,
+    onHeaderClick: () -> Unit
+) {
+
+    Column(
+        modifier = Modifier
+            .padding(bottom = 16.dp)
+            .animateContentSize(),
+
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+
+        val cityName = weatherData.weatherResponse.location.name
+        val forecastDays = weatherData.weatherResponse.forecast.forecastday
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(IntrinsicSize.Min),
+
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            InvertedCorner(
+                corner = Corner.BottomRight,
+                cornerRadius = 16.dp,
+                color = CardBg,
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxHeight()
+            )
+
+            Box(
+                modifier = Modifier
+                    .defaultMinSize(minWidth = 160.dp)
+                    .background(
+                        CardBg,
+                        shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
+                    )
+                    .padding(horizontal = 8.dp, vertical = 4.dp)
+                    .clickable { onHeaderClick() },
+                contentAlignment = Alignment.Center
+            ) {
+
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    Text(cityName, color = TextColor)
+                    Text(
+                        weatherData.weatherResponse.current.condition.text,
+                        color = TextColor
+                    )
+
+                    val rotationAngle by animateFloatAsState(
+                        targetValue = if (isExpanded) 180f else 0f,
+                        label = "rotationAnimation"
+                    )
+
+                    Spacer(Modifier.height(8.dp))
+                    Icon(
+                        imageVector = Icons.Default.KeyboardArrowDown,
+                        contentDescription = if (isExpanded) "Collapse" else "Expand",
+                        tint = TextColor.copy(alpha = 0.7f),
+                        modifier = Modifier
+                            .size(24.dp)
+                            .graphicsLayer {
+                                rotationZ = rotationAngle
+                            }
+                    )
+
+                }
+            }
+
+            InvertedCorner(
+                corner = Corner.BottomLeft,
+                cornerRadius = 16.dp,
+                color = CardBg,
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxHeight()
+            )
+        }
+
+        Column(
+            modifier = Modifier
+                .clipToBounds()
+                .background(CardBg, RoundedCornerShape(16.dp))
+        ) {
+            DayItem(forecastDays.first())
+
+            AnimatedVisibility(
+                visible = isExpanded,
+                enter = expandVertically(animationSpec = tween(250)) /*+ fadeIn()*/,
+                exit = shrinkVertically(animationSpec = tween(250)) + fadeOut()
+            ) {
+                Column {
+                    forecastDays
+                        .drop(1)
+                        .forEach { day ->
+                            DayItem(day)
+                        }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun DayItem(day: ForecastDay) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(DAY_ITEM_HEIGHT.dp)
+            .padding(horizontal = 12.dp, vertical = 12.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(IntrinsicSize.Min),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+
+            Text(
+                modifier = Modifier
+                    .height(36.dp)
+                    .background(
+                        DayBg,
+                        RoundedCornerShape(12.dp, 12.dp)
+                    )
+                    .padding(8.dp),
+                text = day.date,
+                color = TextColor,
+                fontSize = 16.sp,
+                softWrap = false,
+                style = LocalTextStyle.current.copy(
+                    platformStyle = PlatformTextStyle(
+                        includeFontPadding = false
+                    )
+                )
+            )
+
+            InvertedCorner(
+                corner = Corner.BottomLeft,
+                cornerRadius = 8.dp,
+                color = DayBg,
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxHeight()
+            )
+        }
+        HoursRow(day = day)
+    }
+}
+
+@Composable
+fun HoursRow(day: ForecastDay) {
     LazyRow(
         modifier = Modifier
+            .height(HOURS_ROW_HEIGHT.dp)
             .background(
                 DayBg,
                 RoundedCornerShape(
@@ -405,19 +560,19 @@ fun DailyForecastRow(day: com.example.weathermvvm.models.ForecastDay) {
     ) {
         items(
             items = day.hour, key = { hour -> hour.time_epoch }) { hour ->
-            HourCard(hour = hour)
+            Hour(hour = hour)
         }
     }
 }
 
 @Composable
-fun HourCard(hour: Hour) {
+fun Hour(hour: Hour) {
     Column(
         modifier = Modifier
             .background(HourBg, RoundedCornerShape(8.dp))
+            .height(HOUR_CARD_HEIGHT.dp)
             .padding(8.dp),
     ) {
-
         val context = LocalContext.current
         val imageBitmap by remember(hour.condition.icon) {
             NetworkHelper.getImage(context, "https:${hour.condition.icon}")
@@ -430,8 +585,30 @@ fun HourCard(hour: Hour) {
             )
         }
 
-        Text(hour.time.split(" ")[1], color = TextColor)
+        Text(
+            modifier = Modifier.height(20.dp),
+            text = hour.time.split(" ")[1],
+            color = TextColor,
+            fontSize = 16.sp,
+            softWrap = false,
+            style = LocalTextStyle.current.copy(
+                platformStyle = PlatformTextStyle(
+                    includeFontPadding = false
+                )
+            )
+        )
         Spacer(modifier = Modifier.height(4.dp))
-        Text("${hour.temp_c}°", color = TextColor)
+        Text(
+            modifier = Modifier.height(20.dp),
+            text = "${hour.temp_c}°",
+            color = TextColor,
+            fontSize = 16.sp,
+            softWrap = false,
+            style = LocalTextStyle.current.copy(
+                platformStyle = PlatformTextStyle(
+                    includeFontPadding = false
+                )
+            )
+        )
     }
 }
