@@ -12,7 +12,6 @@ import com.example.weathermvvm.models.LocationData
 import com.example.weathermvvm.models.WeatherData
 import com.example.weathermvvm.models.WeatherResponse
 import kotlinx.collections.immutable.ImmutableList
-import kotlinx.collections.immutable.PersistentList
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -24,14 +23,26 @@ open class DefaultWeatherViewModel(application: Application) : AndroidViewModel(
     WeatherViewModel {
     private val _weatherData = MutableStateFlow<ImmutableList<WeatherData>>(persistentListOf())
     override val weatherData: StateFlow<ImmutableList<WeatherData>> = _weatherData
-//    private val _weatherData = MutableStateFlow<PersistentList<WeatherData>>(persistentListOf())
-//    override val weatherData: StateFlow<ImmutableList<WeatherData>> = _weatherData
 
     var permissionGranted by mutableStateOf(false)
     var locationUpdatesRunning by mutableStateOf(false)
 
     fun onPermissionResult(isGranted: Boolean) {
         permissionGranted = isGranted
+    }
+
+    override fun removeCity(city: String) {
+        val currentList = _weatherData.value
+        val index = currentList.indexOfFirst {
+
+            if (it.weatherResponse.location.name == city) {
+                it.weatherResponse.location.name == city
+            } else return@indexOfFirst false
+
+        }
+        val mutableList = currentList.toMutableList()
+        mutableList.removeAt(index)
+        _weatherData.value = mutableList.toImmutableList()
     }
 
     override fun fetchWeatherForLocation(
@@ -80,17 +91,14 @@ open class DefaultWeatherViewModel(application: Application) : AndroidViewModel(
             }
         }
 
-        // 1. Create a standard, MUTABLE list from the current immutable list.
         val mutableList = currentList.toMutableList()
 
-        // 2. Perform the update on the MUTABLE list.
         if (index >= 0) {
-            mutableList[index] = updated // Standard list 'set' syntax
+            mutableList[index] = updated
         } else {
-            mutableList.add(updated)    // Standard list 'add' syntax
+            mutableList.add(updated)
         }
 
-        // 3. Assign the new, converted-back-to-immutable list to the StateFlow.
         _weatherData.value = mutableList.toImmutableList()
 
         println("Weather data updated. Count: ${_weatherData.value.size}")
@@ -103,6 +111,10 @@ interface WeatherViewModel {
         location: LocationData,
         forceReload: Boolean = false,
     )
+
+    fun removeCity(city: String) {
+
+    }
 }
 
 

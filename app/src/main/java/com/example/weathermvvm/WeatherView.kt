@@ -40,6 +40,7 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.Button
@@ -86,17 +87,32 @@ import com.example.weathermvvm.ui.theme.CardBg
 import com.example.weathermvvm.ui.theme.DayBg
 import com.example.weathermvvm.ui.theme.HourBg
 import com.example.weathermvvm.ui.theme.TextColor
-import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.PersistentMap
 import kotlinx.collections.immutable.persistentMapOf
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
 @Composable
-fun WeatherView(viewModel: WeatherViewModel) {
-    val weatherItems by viewModel.weatherData.collectAsState()
+fun WeatherView(
+    viewModel: WeatherViewModel,
+) {
+    Box(modifier = Modifier.fillMaxSize()) {
+        WeatherCardContainer(viewModel)
+        CityInputOverlayController(viewModel)
+    }
+
+}
+
+@Composable
+fun BoxScope.CityInputOverlayController(viewModel: WeatherViewModel) {
+    var showAddCityInput by remember { mutableStateOf(false) }
+
+    val onDismiss = remember { { showAddCityInput = false } }
+
     val onCitySubmit = remember(viewModel) {
         { city: String ->
+
+            showAddCityInput = false
             viewModel.fetchWeatherForLocation(
                 LocationData(
                     city = city, basedOn = LocationBase.CITY
@@ -104,60 +120,32 @@ fun WeatherView(viewModel: WeatherViewModel) {
             )
         }
     }
-    WeatherScreen(
-        weatherItems,
-        onCitySubmit = onCitySubmit
+
+    AddCityInputOverlay(
+        showAddCityInput = showAddCityInput, onDismiss = onDismiss, onCitySubmit = onCitySubmit
     )
-}
 
-@Composable
-fun WeatherScreen(
-    weatherResponseList: ImmutableList<WeatherData>,
-    onCitySubmit: (String) -> Unit
-) {
-
-    Box(modifier = Modifier.fillMaxSize()) {
-
-        WeatherCardContainer(weatherResponseList)
-
-        var showAddCityInput by remember { mutableStateOf(false) }
-
-        val onDismiss = remember { { showAddCityInput = false } }
-        val onSubmit = remember(onCitySubmit) {
-            { city: String ->
-                onCitySubmit(city)
-                showAddCityInput = false
-            }
+    if (!showAddCityInput) {
+        val onFabClick = remember { { showAddCityInput = true } }
+        FloatingActionButton(
+            onClick = onFabClick,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(16.dp),
+            containerColor = AccentBlue
+        ) {
+            Icon(Icons.Default.Add, contentDescription = "Add city")
         }
-
-
-        AddCityInputOverlay(
-            showAddCityInput = showAddCityInput,
-            onDismiss = onDismiss,
-            onSubmit = onSubmit
-        )
-
-        if (!showAddCityInput) {
-            val onFabClick = remember { { showAddCityInput = true } }
-            FloatingActionButton(
-                onClick = onFabClick,
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .padding(16.dp),
-                containerColor = AccentBlue
-            ) {
-                Icon(Icons.Default.Add, contentDescription = "Add city")
-            }
-        }
-
     }
 }
 
 @Composable
-fun WeatherCardContainer(weatherResponseList: ImmutableList<WeatherData>) {
+fun WeatherCardContainer(
+    viewModel: WeatherViewModel,
+) {
+
     val listState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
-
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -166,36 +154,25 @@ fun WeatherCardContainer(weatherResponseList: ImmutableList<WeatherData>) {
     ) {
         Text(
             "Weather test app",
-            color = TextColor, fontSize = 24.sp,
+            color = TextColor,
+            fontSize = 24.sp,
             modifier = Modifier.padding(20.dp)
         )
 
         Box(modifier = Modifier.weight(1f)) {
-            StableWeatherCards(
+            WeatherCards(
                 listState = listState,
-                weatherResponseList = weatherResponseList
+                viewModel = viewModel,
             )
-
             ScrollArrowWithState(listState, coroutineScope)
         }
     }
 }
 
-@Composable
-private fun StableWeatherCards(
-    listState: LazyListState,
-    weatherResponseList: ImmutableList<WeatherData>
-) {
-    WeatherCards(
-        listState = listState,
-        weatherResponseList = weatherResponseList
-    )
-}
 
 @Composable
 private fun BoxScope.ScrollArrowWithState(
-    listState: LazyListState,
-    coroutineScope: CoroutineScope
+    listState: LazyListState, coroutineScope: CoroutineScope
 ) {
     val showUpArrow by remember { derivedStateOf { listState.canScrollBackward } }
     val showDownArrow by remember { derivedStateOf { listState.canScrollForward } }
@@ -235,16 +212,10 @@ private fun BoxScope.ScrollArrowWithState(
 
 @Composable
 private fun ScrollArrow(
-    isVisible: Boolean,
-    modifier: Modifier = Modifier,
-    icon: ImageVector,
-    onClick: () -> Unit
+    isVisible: Boolean, modifier: Modifier = Modifier, icon: ImageVector, onClick: () -> Unit
 ) {
     AnimatedVisibility(
-        visible = isVisible,
-        modifier = modifier,
-        enter = fadeIn(),
-        exit = fadeOut()
+        visible = isVisible, modifier = modifier, enter = fadeIn(), exit = fadeOut()
     ) {
         Icon(
             imageVector = icon,
@@ -260,9 +231,7 @@ private fun ScrollArrow(
 
 @Composable
 fun BoxScope.AddCityInputOverlay(
-    showAddCityInput: Boolean,
-    onDismiss: () -> Unit,
-    onSubmit: (String) -> Unit
+    showAddCityInput: Boolean, onDismiss: () -> Unit, onCitySubmit: (String) -> Unit
 ) {
     if (!showAddCityInput) return
 
@@ -283,14 +252,13 @@ fun BoxScope.AddCityInputOverlay(
         enter = slideInVertically(initialOffsetY = { it }),
         exit = slideOutVertically(targetOffsetY = { it })
     ) {
-        CityInputRow(onSubmit = onSubmit, modifier = Modifier.clickable(enabled = false) {})
+        CityInputRow(onCitySubmit = onCitySubmit, modifier = Modifier.clickable(enabled = false) {})
     }
 }
 
 @Composable
 fun CityInputRow(
-    onSubmit: (String) -> Unit,
-    modifier: Modifier = Modifier
+    onCitySubmit: (String) -> Unit, modifier: Modifier = Modifier
 ) {
     var text by remember { mutableStateOf(TextFieldValue("")) }
     val keyboardController = LocalSoftwareKeyboardController.current
@@ -299,14 +267,12 @@ fun CityInputRow(
         modifier = modifier
             .fillMaxWidth()
             .background(
-                color = CardBg,
-                shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
+                color = CardBg, shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
             )
             .padding(16.dp)
     ) {
         Row(
-            modifier = Modifier.height(60.dp),
-            verticalAlignment = Alignment.CenterVertically
+            modifier = Modifier.height(60.dp), verticalAlignment = Alignment.CenterVertically
         ) {
             TextField(
                 value = text,
@@ -321,17 +287,17 @@ fun CityInputRow(
                 ),
                 keyboardActions = KeyboardActions(onDone = {
                     if (text.text.isNotBlank()) {
-                        onSubmit(text.text)
+                        onCitySubmit(text.text)
                         keyboardController?.hide()
                     }
                 })
             )
 
             Spacer(modifier = Modifier.width(8.dp))
-            val onButtonClick = remember(onSubmit, keyboardController) {
+            val onButtonClick = remember(onCitySubmit, keyboardController) {
                 {
                     if (text.text.isNotBlank()) {
-                        onSubmit(text.text)
+                        onCitySubmit(text.text)
                         text = TextFieldValue("")
                         keyboardController?.hide()
                     }
@@ -342,8 +308,7 @@ fun CityInputRow(
                 shape = RoundedCornerShape(8.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = AccentBlue),
                 onClick = onButtonClick
-            )
-            {
+            ) {
                 Text("Add")
             }
         }
@@ -354,8 +319,16 @@ fun CityInputRow(
 @Composable
 fun WeatherCards(
     listState: LazyListState,
-    weatherResponseList: ImmutableList<WeatherData>
+    viewModel: WeatherViewModel,
 ) {
+    val weatherResponseList by viewModel.weatherData.collectAsState()
+
+    val onCityRemove = remember(viewModel) {
+        { city: String ->
+            viewModel.removeCity(city)
+        }
+    }
+
     var expandedCardIndices by remember {
         mutableStateOf<PersistentMap<String, Boolean>>(
             persistentMapOf()
@@ -371,13 +344,10 @@ fun WeatherCards(
             val name = weatherData.weatherResponse.location.name
             val isExpanded = expandedCardIndices[name] ?: false
             WeatherCard(
-                weatherData,
-                isExpanded,
-                onHeaderClick = {
+                weatherData, isExpanded, onHeaderClick = {
                     expandedCardIndices = expandedCardIndices.put(name, !isExpanded)
-                }
+                }, onCityRemove = onCityRemove
             )
-//            TODO Put listState in weatherData?
         }
 
         item {
@@ -391,7 +361,8 @@ fun WeatherCards(
 fun WeatherCard(
     weatherData: WeatherData,
     isExpanded: Boolean,
-    onHeaderClick: () -> Unit
+    onHeaderClick: () -> Unit,
+    onCityRemove: (String) -> Unit
 ) {
 
     Column(
@@ -425,26 +396,34 @@ fun WeatherCard(
                 modifier = Modifier
                     .defaultMinSize(minWidth = 160.dp)
                     .background(
-                        CardBg,
-                        shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
+                        CardBg, shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
                     )
-                    .padding(horizontal = 8.dp, vertical = 4.dp)
-                    .clickable { onHeaderClick() },
+                    .padding(horizontal = 8.dp, vertical = 4.dp),
                 contentAlignment = Alignment.Center
             ) {
 
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
-                    Text(cityName, color = TextColor)
+                    Row {
+                        Spacer(modifier = Modifier.width(48.dp))
+                        Text(cityName, color = TextColor)
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = null,
+                            tint = TextColor.copy(alpha = 0.7f),
+                            modifier = Modifier
+                                .width(48.dp)
+                                .clickable { onCityRemove(cityName) }
+                                .padding(horizontal = 12.dp),
+                        )
+                    }
                     Text(
-                        weatherData.weatherResponse.current.condition.text,
-                        color = TextColor
+                        weatherData.weatherResponse.current.condition.text, color = TextColor
                     )
 
                     val rotationAngle by animateFloatAsState(
-                        targetValue = if (isExpanded) 180f else 0f,
-                        label = "rotationAnimation"
+                        targetValue = if (isExpanded) 180f else 0f, label = "rotationAnimation"
                     )
 
                     Spacer(Modifier.height(8.dp))
@@ -457,7 +436,9 @@ fun WeatherCard(
                             .graphicsLayer {
                                 rotationZ = rotationAngle
                             }
-                    )
+                            .clickable { onHeaderClick() },
+
+                        )
 
                 }
             }
@@ -485,9 +466,7 @@ fun WeatherCard(
                 exit = shrinkVertically(animationSpec = tween(250)) + fadeOut()
             ) {
                 Column {
-                    forecastDays
-                        .drop(1)
-                        .forEach { day ->
+                    forecastDays.drop(1).forEach { day ->
                             DayItem(day)
                         }
                 }
@@ -515,8 +494,7 @@ private fun DayItem(day: ForecastDay) {
                 modifier = Modifier
                     .height(36.dp)
                     .background(
-                        DayBg,
-                        RoundedCornerShape(12.dp, 12.dp)
+                        DayBg, RoundedCornerShape(12.dp, 12.dp)
                     )
                     .padding(8.dp),
                 text = day.date,
@@ -549,10 +527,8 @@ fun HoursRow(day: ForecastDay) {
         modifier = Modifier
             .height(HOURS_ROW_HEIGHT.dp)
             .background(
-                DayBg,
-                RoundedCornerShape(
-                    0.dp, 8.dp, 8.dp,
-                    8.dp
+                DayBg, RoundedCornerShape(
+                    0.dp, 8.dp, 8.dp, 8.dp
                 )
             ),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
