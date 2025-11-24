@@ -136,6 +136,7 @@ class MainActivity : ComponentActivity() {
     }
 
     fun setupLocationUpdates(context: Context) {
+        println("Only once i hope")
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(context)
         locationCallback = object : LocationCallback() {
             override fun onLocationResult(locationResult: LocationResult) {

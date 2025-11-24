@@ -1,5 +1,6 @@
 package com.example.weathermvvm
 
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.animateFloatAsState
@@ -10,6 +11,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -34,6 +36,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
@@ -54,6 +57,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -160,10 +164,11 @@ fun WeatherCardContainer(
         )
 
         Box(modifier = Modifier.weight(1f)) {
-            WeatherCards(
-                listState = listState,
-                viewModel = viewModel,
-            )
+
+            HorizontalWeatherSelector(viewModel = viewModel)//            WeatherCards(
+//                listState = listState,
+//                viewModel = viewModel,
+//            )
             ScrollArrowWithState(listState, coroutineScope)
         }
     }
@@ -358,6 +363,116 @@ fun WeatherCards(
 }
 
 @Composable
+fun HorizontalWeatherSelector(
+    viewModel: WeatherViewModel,
+) {
+    val weatherResponseList by viewModel.weatherData.collectAsState()
+
+    var selectedCityIndex by remember { mutableIntStateOf(0) }
+    val onCityRemove = remember(viewModel) {
+        { city: String ->
+
+            viewModel.removeCity(city)
+        }
+    }
+    Column(
+        modifier = Modifier.fillMaxSize(),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+
+        LazyRow(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 8.dp),
+            contentPadding = PaddingValues(horizontal = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            itemsIndexed(weatherResponseList) { index, weatherData ->
+                val isSelected = selectedCityIndex == index
+
+                WeatherHeader(
+                    weatherData = weatherData,
+                    isSelected = isSelected,
+                    onClick = {
+                        selectedCityIndex = index
+                    },
+                    onCityRemove = { city ->
+                        selectedCityIndex = (selectedCityIndex - 1).coerceAtLeast(0)
+                        viewModel.removeCity(city)
+                    }
+
+                )
+            }
+        }
+
+        AnimatedContent(
+            targetState = selectedCityIndex,
+            transitionSpec = {
+                fadeIn(animationSpec = tween(300)) togetherWith fadeOut(animationSpec = tween(300))
+            },
+            label = "detailViewAnimation"
+        ) { targetIndex ->
+            val selectedWeatherData = weatherResponseList.getOrNull(targetIndex)
+
+            if (selectedWeatherData != null) {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp)
+                ) {
+                    items(selectedWeatherData.weatherResponse.forecast.forecastday) { day ->
+                        DayItem(day = day)
+                    }
+                }
+            } else {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Text("Select a city", color = TextColor)
+                }
+            }
+        }
+    }
+}
+
+
+@Composable
+private fun WeatherHeader(
+    weatherData: WeatherData,
+    isSelected: Boolean,
+    onClick: () -> Unit,
+    onCityRemove: (String) -> Unit
+) {
+    val backgroundColor = if (isSelected) AccentBlue else CardBg
+    val textColor = if (isSelected) Color.White else TextColor
+    val cityName = weatherData.weatherResponse.location.name;
+    Column(
+        modifier = Modifier
+            .background(backgroundColor, RoundedCornerShape(16.dp))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        horizontalAlignment = Alignment.Start
+    ) {
+
+        Row {
+            Text(cityName, color = textColor)
+            Icon(
+                imageVector = Icons.Default.Close,
+                contentDescription = null,
+                tint = TextColor.copy(alpha = 0.7f),
+                modifier = Modifier
+                    .width(48.dp)
+                    .clickable { onCityRemove(cityName) }
+                    .padding(start = 24.dp),
+            )
+        }
+
+        Text(
+            weatherData.weatherResponse.current.condition.text,
+            color = textColor,
+            fontSize = 12.sp
+        )
+    }
+}
+
+@Composable
 fun WeatherCard(
     weatherData: WeatherData,
     isExpanded: Boolean,
@@ -415,7 +530,7 @@ fun WeatherCard(
                             modifier = Modifier
                                 .width(48.dp)
                                 .clickable { onCityRemove(cityName) }
-                                .padding(horizontal = 12.dp),
+                                .padding(start = 24.dp),
                         )
                     }
                     Text(
@@ -467,8 +582,8 @@ fun WeatherCard(
             ) {
                 Column {
                     forecastDays.drop(1).forEach { day ->
-                            DayItem(day)
-                        }
+                        DayItem(day)
+                    }
                 }
             }
         }
